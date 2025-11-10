@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-verktygsorganiserare</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .input-section {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        
+        .tools-section {
+            flex: 2;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        textarea {
+            height: 100px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 5px;
+        }
+        
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            font-weight: normal;
+            background: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 15px;
+            cursor: pointer;
+        }
+        
+        .checkbox-label:hover {
+            background: #dee2e6;
+        }
+        
+        .checkbox-label input {
+            width: auto;
+            margin-right: 5px;
+        }
+        
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background: #2980b9;
+        }
+        
+        .tools-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .tool-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .tool-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .tool-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 0;
+        }
+        
+        .tool-rating {
+            color: #f39c12;
+        }
+        
+        .tool-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin: 10px 0;
+        }
+        
+        .tool-tag {
+            background: #e9ecef;
+            padding: 3px 8px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+        
+        .tool-category {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .tool-price {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .tool-description {
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        
+        .tool-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        
+        .search-section {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .search-input {
+            flex-grow: 1;
+        }
+        
+        .filter-section {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: #f1f1f1;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+        
+        .filter-label {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .filter-select {
+            width: auto;
+            padding: 5px;
+        }
+        
+        /* Taggar med färger för olika kategorier */
+        .tag-marknadsföring { background-color: #3498db; color: white; }
+        .tag-assistenter { background-color: #2ecc71; color: white; }
+        .tag-automatisering { background-color: #9b59b6; color: white; }
+        .tag-text { background-color: #e74c3c; color: white; }
+        .tag-bild { background-color: #f39c12; color: white; }
+        .tag-video { background-color: #1abc9c; color: white; }
+        .tag-kod { background-color: #34495e; color: white; }
+        .tag-analys { background-color: #7f8c8d; color: white; }
+
+        .export-import {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI-verktygsorganiserare</h1>
+    
+    <div class="search-section">
+        <input type="text" id="search-input" class="search-input" placeholder="Sök på namn, beskrivning eller taggar...">
+        <button id="search-button">Sök</button>
+        <button id="reset-search">Återställ</button>
+    </div>
+    
+    <div class="filter-section">
+        <div class="filter-group">
+            <span class="filter-label">Kategori:</span>
+            <select id="category-filter" class="filter-select">
+                <option value="all">Alla</option>
+                <option value="Marknadsföring">Marknadsföring</option>
+                <option value="Assistent">Assistent</option>
+                <option value="Automatisering">Automatisering</option>
+                <option value="Bildgenerering">Bildgenerering</option>
+                <option value="Textgenerering">Textgenerering</option>
+                <option value="Videogenerering">Videogenerering</option>
+                <option value="Kodning">Kodning</option>
+                <option value="Analys">Analys</option>
+                <option value="Annat">Annat</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">Pris:</span>
+            <select id="price-filter" class="filter-select">
+                <option value="all">Alla</option>
+                <option value="free">Gratis</option>
+                <option value="freemium">Freemium</option>
+                <option value="paid">Betald</option>
+                <option value="subscription">Prenumeration</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">Betyg:</span>
+            <select id="rating-filter" class="filter-select">
+                <option value="all">Alla</option>
+                <option value="5">5 stjärnor</option>
+                <option value="4">4+ stjärnor</option>
+                <option value="3">3+ stjärnor</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="input-section">
+            <h2>Lägg till AI-verktyg</h2>
+            <form id="tool-form">
+                <div class="form-group">
+                    <label for="tool-name">Namn på verktyg:</label>
+                    <input type="text" id="tool-name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tool-url">URL/Hemsida:</label>
+                    <input type="url" id="tool-url" placeholder="https://...">
+                </div>
+                
+                <div class="form-group">
+                    <label for="tool-description">Beskrivning (vad gör det?):</label>
+                    <textarea id="tool-description" required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tool-category">Kategori:</label>
+                    <select id="tool-category" required>
+                        <option value="Marknadsföring">Marknadsföring</option>
+                        <option value="Assistent">Assistent</option>
+                        <option value="Automatisering">Automatisering</option>
+                        <option value="Bildgenerering">Bildgenerering</option>
+                        <option value="Textgenerering">Textgenerering</option>
+                        <option value="Videogenerering">Videogenerering</option>
+                        <option value="Kodning">Kodning</option>
+                        <option value="Analys">Analys</option>
+                        <option value="Annat">Annat</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tool-price">Prismodell:</label>
+                    <select id="tool-price" required>
+                        <option value="free">Gratis</option>
+                        <option value="freemium">Freemium</option>
+                        <option value="paid">Betald</option>
+                        <option value="subscription">Prenumeration</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tool-cost">Ungefärlig kostnad (valfritt):</label>
+                    <input type="text" id="tool-cost" placeholder="t.ex. $10/månad eller 99kr/år">
+                </div>
+                
+                <div class="form-group">
+                    <label for="tool-rating">Betyg (1-5):</label>
+                    <select id="tool-rating" required>
+                        <option value="5">5 - Utmärkt</option>
+                        <option value="4">4 - Mycket bra</option>
+                        <option value="3">3 - Bra</option>
+                        <option value="2">2 - OK</option>
+                        <option value="1">1 - Dålig</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Funktionstaggar:</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label tag-marknadsföring">
+                            <input type="checkbox" value="marknadsföring"> Marknadsföring
+                        </label>
+                        <label class="checkbox-label tag-assistenter">
+                            <input type="checkbox" value="assistent"> Assistent
+                        </label>
+                        <label class="checkbox-label tag-automatisering">
+                            <input type="checkbox" value="automatisering"> Automatisering
+                        </label>
+                        <label class="checkbox-label tag-text">
+                            <input type="checkbox" value="text"> Text
+                        </label>
+                        <label class="checkbox-label tag-bild">
+                            <input type="checkbox" value="bild"> Bild
+                        </label>
+                        <label class="checkbox-label tag-video">
+                            <input type="checkbox" value="video"> Video
+                        </label>
+                        <label class="checkbox-label tag-kod">
+                            <input type="checkbox" value="kod"> Kod
+                        </label>
+                        <label class="checkbox-label tag-analys">
+                            <input type="checkbox" value="analys"> Analys
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="custom-tags">Egna taggar (kommaseparerade):</label>
+                    <input type="text" id="custom-tags" placeholder="t.ex. openai, produktivitet, hemsidor">
+                </div>
+                
+                <div class="form-group">
+                    <label for="tool-notes">Anteckningar (för- och nackdelar, användningsområden):</label>
+                    <textarea id="tool-notes"></textarea>
+                </div>
+                
+                <button type="submit">Lägg till verktyg</button>
+            </form>
+            
+            <div class="export-import">
+                <h3>Exportera/Importera data</h3>
+                <button id="export-data">Exportera till fil</button>
+                <div class="form-group">
+                    <label for="import-file">Importera från fil:</label>
+                    <input type="file" id="import-file" accept=".json">
+                </div>
+                <button id="import-data">Importera</button>
+            </div>
+        </div>
+        
+        <div class="tools-section">
+            <h2>Dina AI-verktyg</h2>
+            <div id="tools-list" class="tools-list">
+                <!-- Verktyg kommer att visas här -->
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Datalagring
+        const STORAGE_KEY = 'ai-tools-data';
+        
+        // Hämta sparade verktyg eller använd tomma array om det inte finns några
+        let toolsData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        
+        // DOM-element
+        const toolForm = document.getElementById('tool-form');
+        const toolsList = document.getElementById('tools-list');
+        const searchInput = document.getElementById('search-input');
+        const searchButton = document.getElementById('search-button');
+        const resetButton = document.getElementById('reset-search');
+        const categoryFilter = document.getElementById('category-filter');
+        const priceFilter = document.getElementById('price-filter');
+        const ratingFilter = document.getElementById('rating-filter');
+        const exportDataBtn = document.getElementById('export-data');
+        const importDataBtn = document.getElementById('import-data');
+        
+        // Visa alla verktyg när sidan laddas
+        displayTools();
+        
+        // Hantera formulärinskickning
+        toolForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Hämta taggar från checkboxes
+            const tagCheckboxes = document.querySelectorAll('.checkbox-group input:checked');
+            const tags = Array.from(tagCheckboxes).map(cb => cb.value);
+            
+            // Hämta egna taggar och lägg till dem
+            const customTags = document.getElementById('custom-tags').value
+                .split(',')
+                .map(tag => tag.trim())
+                .filter(tag => tag !== '');
+            
+            tags.push(...customTags);
+            
+            // Skapa ett verktyg-objekt
+            const tool = {
+                id: Date.now().toString(), // Enkelt unikt ID baserat på nuvarande tid
+                name: document.getElementById('tool-name').value,
+                url: document.getElementById('tool-url').value,
+                description: document.getElementById('tool-description').value,
+                category: document.getElementById('tool-category').value,
+                price: document.getElementById('tool-price').value,
+                cost: document.getElementById('tool-cost').value,
+                rating: parseInt(document.getElementById('tool-rating').value),
+                tags: tags,
+                notes: document.getElementById('tool-notes').value,
+                dateAdded: new Date().toISOString()
+            };
+            
+            // Lägg till verktyget i datan
+            toolsData.push(tool);
+            
+            // Spara i localStorage
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(toolsData));
+            
+            // Uppdatera visningen
+            displayTools();
+            
+            // Återställ formuläret
+            toolForm.reset();
+            
+            // Rensa alla checkboxes
+            document.querySelectorAll('.checkbox-group input').forEach(cb => {
+                cb.checked = false;
+            });
+        });
+        
+        // Hantera sökningar
+        searchButton.addEventListener('click', function() {
+            displayTools();
+        });
+        
+        resetButton.addEventListener('click', function() {
+            searchInput.value = '';
+            categoryFilter.value = 'all';
+            priceFilter.value = 'all';
+            ratingFilter.value = 'all';
+            displayTools();
+        });
+        
+        // Filter-ändringar
+        categoryFilter.addEventListener('change', displayTools);
+        priceFilter.addEventListener('change', displayTools);
+        ratingFilter.addEventListener('change', displayTools);
+        
+        // Exportera data
+        exportDataBtn.addEventListener('click', function() {
+            const dataStr = JSON.stringify(toolsData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ai-tools-export-' + new Date().toISOString().slice(0, 10) + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+        
+        // Importera data
+        importDataBtn.addEventListener('click', function() {
+            const fileInput = document.getElementById('import-file');
+            const file = fileInput.files[0];
+            
+            if (file) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    try {
+                        const importedData = JSON.parse(e.target.result);
+                        
+                        if (Array.isArray(importedData)) {
+                            // Fråga användaren hur importen ska hanteras
+                            const importAction = confirm('Vill du ersätta befintlig data (OK) eller lägga till den nya datan (Avbryt)?');
+                            
+                            if (importAction) {
+                                // Ersätt befintlig data
+                                toolsData = importedData;
+                            } else {
+                                // Lägg till ny data
+                                toolsData = [...toolsData, ...importedData];
+                            }
+                            
+                            // Spara och uppdatera visning
+                            localStorage.setItem(STORAGE_KEY, JSON.stringify(toolsData));
+                            displayTools();
+                            alert('Import slutförd!');
+                        } else {
+                            alert('Ogiltig filformat. Filen måste innehålla en JSON-array.');
+                        }
+                    } catch (err) {
+                        alert('Fel vid importering: ' + err.message);
+                    }
+                };
+                
+                reader.readAsText(file);
+            } else {
+                alert('Vänligen välj en fil att importera.');
+            }
+        });
+        
+        // Funktion för att visa verktyg med filtrering
+        function displayTools() {
+            // Hämta filtervärden
+            const searchText = searchInput.value.toLowerCase();
+            const categoryFilterValue = categoryFilter.value;
+            const priceFilterValue = priceFilter.value;
+            const ratingFilterValue = parseInt(ratingFilter.value) || 0;
+            
+            // Rensa listan
+            toolsList.innerHTML = '';
+            
+            // Filtrera och sortera verktyg (senast tillagda först)
+            const filteredTools = toolsData
+                .filter(tool => {
+                    // Textsökning
+                    const matchesSearch = 
+                        !searchText || 
+                        tool.name.toLowerCase().includes(searchText) ||
+                        tool.description.toLowerCase().includes(searchText) ||
+                        tool.notes.toLowerCase().includes(searchText) ||
+                        tool.tags.some(tag => tag.toLowerCase().includes(searchText));
+                    
+                    // Kategorifilter
+                    const matchesCategory = categoryFilterValue === 'all' || tool.category === categoryFilterValue;
+                    
+                    // Prisfilter
+                    const matchesPrice = priceFilterValue === 'all' || tool.price === priceFilterValue;
+                    
+                    // Betygsfilter
+                    const matchesRating = ratingFilterValue === 0 || tool.rating >= ratingFilterValue;
+                    
+                    return matchesSearch && matchesCategory && matchesPrice && matchesRating;
+                })
+                .sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
+            
+            // Visa filterderade verktyg
+            if (filteredTools.length === 0) {
+                toolsList.innerHTML = '<p>Inga verktyg hittades med de valda filtren.</p>';
+                return;
+            }
+            
+            filteredTools.forEach(tool => {
+                const toolCard = document.createElement('div');
+                toolCard.className = 'tool-card';
+                
+                // Hämta prisinformation
+                let priceText = '';
+                switch(tool.price) {
+                    case 'free': priceText = 'Gratis'; break;
+                    case 'freemium': priceText = 'Freemium'; break;
+                    case 'paid': priceText = 'Betald'; break;
+                    case 'subscription': priceText = 'Prenumeration'; break;
+                }
+                if (tool.cost) {
+                    priceText += ` (${tool.cost})`;
+                }
+                
+                // Skapa taggar-HTML
+                const tagsHtml = tool.tags.map(tag => {
+                    // Definiera CSS-klasser för specifika taggar
+                    let tagClass = '';
+                    if (['marknadsföring', 'assistenter', 'automatisering', 'text', 'bild', 'video', 'kod', 'analys'].includes(tag)) {
+                        tagClass = `tag-${tag}`;
+                    }
+                    
+                    return `<span class="tool-tag ${tagClass}">${tag}</span>`;
+                }).join('');
+                
+                toolCard.innerHTML = `
+                    <div class="tool-header">
+                        <h3 class="tool-title">${tool.name}</h3>
+                        <div class="tool-rating">${'★'.repeat(tool.rating)}</div>
+                    </div>
+                    <div class="tool-category">${tool.category}</div>
+                    <div class="tool-price">${priceText}</div>
+                    ${tool.url ? `<div class="tool-url"><a href="${tool.url}" target="_blank">${tool.url}</a></div>` : ''}
+                    <div class="tool-description">${tool.description}</div>
+                    ${tool.notes ? `<div class="tool-notes"><strong>Anteckningar:</strong> ${tool.notes}</div>` : ''}
+                    <div class="tool-tags">${tagsHtml}</div>
+                    <div class="tool-actions">
+                        <button class="edit-tool" data-id="${tool.id}">Redigera</button>
+                        <button class="delete-tool" data-id="${tool.id}">Ta bort</button>
+                    </div>
+                `;
+                
+                // Lägg till knapphändelser
+                const editBtn = toolCard.querySelector('.edit-tool');
+                const deleteBtn = toolCard.querySelector('.delete-tool');
+                
+                editBtn.addEventListener('click', function() {
+                    // Implementera redigering senare
+                    alert('Redigering kommer i nästa version!');
+                });
+                
+                deleteBtn.addEventListener('click', function() {
+                    const toolId = this.getAttribute('data-id');
+                    if (confirm('Är du säker på att du vill ta bort detta verktyg?')) {
+                        toolsData = toolsData.filter(t => t.id !== toolId);
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(toolsData));
+                        displayTools();
+                    }
+                });
+                
+                toolsList.appendChild(toolCard);
+            });
+        }
+        
+        // Lägg till några exempelverktyg om listan är tom
+        if (toolsData.length === 0) {
+            const exampleTools = [
+                {
+                    id: "example1",
+                    name: "ChatGPT",
+                    url: "https://chat.openai.com",
+                    description: "Generativ AI-chatbot som kan svara på frågor, skriva text, och hjälpa med olika uppgifter.",
+                    category: "Assistent",
+                    price: "freemium",
+                    cost: "Gratis / $20/månad för Plus",
+                    rating: 5,
+                    tags: ["assistent", "text", "openai", "chatbot"],
+                    notes: "Mycket bra för textgenerering, research och idégenerering. Plus-versionen ger tillgång till GPT-4.",
+                    dateAdded: new Date().toISOString()
+                },
+                {
+                    id: "example2",
+                    name: "Midjourney",
+                    url: "https://www.midjourney.com",
+                    description: "AI-verktyg för att generera bilder från textbeskrivningar.",
+                    category: "Bildgenerering",
+                    price: "subscription",
+                    cost: "$10-30/månad beroende på plan",
+                    rating: 4,
+                    tags: ["bild", "kreativitet", "design"],
+                    notes: "Mycket bra bildkvalitet. Kräver Discord-konto för att använda.",
+                    dateAdded: new Date().toISOString()
+                },
+                {
+                    id: "example3",
+                    name: "Claude",
+                    url: "https://claude.ai",
+                    description: "Avancerad AI-assistent från Anthropic med starka förmågor inom konversation och analys.",
+                    category: "Assistent",
+                    price: "freemium",
+                    cost: "Gratis / $20/månad för Pro",
+                    rating: 5,
+                    tags: ["assistent", "text", "anthropic"],
+                    notes: "Mycket bra för längre konversationer och analyser. Har förmåga att hantera dokument.",
+                    dateAdded: new Date().toISOString()
+                }
+            ];
+            
+            toolsData = exampleTools;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(toolsData));
+            displayTools();
+        }
+    </script>
+</body>
+</html>

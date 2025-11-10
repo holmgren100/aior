@@ -1,0 +1,146 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": "1",
+        "title": "Project Setup and Static Hosting Configuration",
+        "description": "Initialize the project structure with clean HTML, CSS, and JavaScript, and configure static hosting on GitHub Pages or Netlify.",
+        "details": "Create a Git repository. Set up a minimal project structure: `/index.html`, `/styles.css`, `/app.js`. Configure deployment scripts for GitHub Pages (using `gh-pages` branch or GitHub Actions) or Netlify (drag-and-drop or CLI). Ensure HTTPS is enforced. Use semantic HTML5 and CSS Grid/Flexbox for layout. No frontend frameworks (React/Vue/Angular) per PRD. Set up ESLint and Prettier for code quality. Document setup in `README.md`.",
+        "testStrategy": "Verify deployment on both GitHub Pages and Netlify. Confirm HTTPS, correct rendering on desktop and mobile, and accessibility basics (tab navigation, ARIA labels).",
+        "priority": "high",
+        "dependencies": [],
+        "status": "in-progress",
+        "subtasks": [],
+        "updatedAt": "2025-11-10T15:51:30.405Z"
+      },
+      {
+        "id": "2",
+        "title": "Design and Implement Core Data Model for AI Tools",
+        "description": "Define and implement the JavaScript data model for AI tools, supporting all specified attributes and localStorage integration.",
+        "details": "Create a JavaScript class or factory function for AI tool objects with fields: name, URL, description, category, pricing model, cost, tags, rating (1-5), images (screenshots/logos), notes. Use JSON schema validation (e.g., Ajv v8.x) for data integrity. Implement CRUD operations with localStorage as the initial backend. Prepare for later migration to Firebase by abstracting storage logic.",
+        "testStrategy": "Unit test data model creation, validation, and localStorage persistence. Validate schema enforcement and edge cases (missing/invalid fields).",
+        "priority": "high",
+        "dependencies": [
+          "1"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "3",
+        "title": "Build Responsive UI for Manual Entry and Display",
+        "description": "Develop responsive HTML/CSS/JS UI for manual entry, editing, and display of AI tool records, optimized for both desktop and mobile.",
+        "details": "Use semantic HTML5 forms for input. Implement responsive design with CSS Grid/Flexbox and media queries. Use vanilla JS for DOM manipulation. Include fields for all data model attributes. Display tool cards in a grid/list view. Add accessibility features (labels, keyboard navigation). Prepare for PWA enhancements. Avoid heavy UI libraries; use lightweight components if needed (e.g., Shoelace, 30kb).",
+        "testStrategy": "Manual and automated UI tests for form validation, responsive layout, and accessibility (using Lighthouse and axe-core).",
+        "priority": "high",
+        "dependencies": [
+          "2"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "4",
+        "title": "Implement Search, Filter, and Sort Functionality",
+        "description": "Enable full-text search, filtering by category/price/rating, and sorting by attributes in the UI.",
+        "details": "Use JavaScript to implement client-side search (fuzzy search with Fuse.js v7.x for performance). Add filter controls (dropdowns, sliders) for category, price model, and rating. Implement sorting (by name, rating, etc.). Ensure all operations are performant for up to 1000 records. Debounce search/filter input for UX.",
+        "testStrategy": "Unit and integration tests for search/filter/sort logic. Manual tests for UX and performance with large datasets.",
+        "priority": "high",
+        "dependencies": [
+          "3"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "5",
+        "title": "Bulk Import and Automated Data Extraction (Web, Email, Instagram)",
+        "description": "Develop logic for bulk import of URLs and text, including extraction of URLs from pasted content and support for Instagram links/screenshots.",
+        "details": "Implement a bulk import modal. Use regex to extract URLs from pasted text. For Instagram, accept both URLs and image uploads. Prepare data for further processing (web scraping/OCR). Use clipboard API for seamless paste experience. Validate and deduplicate imported URLs.",
+        "testStrategy": "Unit tests for URL extraction and deduplication. Manual tests for bulk import UX and edge cases (invalid URLs, mixed content).",
+        "priority": "high",
+        "dependencies": [
+          "4"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "6",
+        "title": "Integrate Cloudflare Workers for Web Scraping",
+        "description": "Set up a Cloudflare Worker to fetch and parse metadata (title, description, images) from imported URLs, using the free tier.",
+        "details": "Write a Cloudflare Worker (JavaScript/TypeScript) that accepts a URL, fetches the page, and extracts Open Graph/meta tags. Return JSON with relevant fields. Handle CORS and rate limits. Secure the endpoint (origin checks, abuse prevention). Integrate with frontend via fetch API. Document API usage and error handling.",
+        "testStrategy": "Integration tests for Worker endpoint (mock URLs, error cases). Manual tests for scraping accuracy and fallback on failure.",
+        "priority": "medium",
+        "dependencies": [
+          "5"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "7",
+        "title": "Integrate OCR.space API for Image Text Extraction",
+        "description": "Enable image uploads (screenshots/logos) and extract text using the OCR.space API (free tier).",
+        "details": "Implement image upload UI (accept PNG/JPG). On upload, send image to OCR.space API via fetch. Parse and display extracted text for user confirmation/editing. Handle API quota errors gracefully. Store extracted text with the AI tool record. Document API key management and privacy considerations.",
+        "testStrategy": "Unit and integration tests for image upload and OCR API calls. Manual tests for various image types and error handling.",
+        "priority": "medium",
+        "dependencies": [
+          "5"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "8",
+        "title": "Automated Tagging and Categorization via Text Analysis",
+        "description": "Implement client-side text analysis to suggest categories, tags, and pricing models based on imported or OCR-extracted text.",
+        "details": "Use lightweight NLP libraries (e.g., compromise v13.x, natural v5.x) for keyword extraction and simple classification. Map keywords to predefined categories/tags/pricing models. Allow user override. For advanced matching, use regular expressions and synonym lists. Avoid server-side ML per PRD. Integrate with import and edit flows.",
+        "testStrategy": "Unit tests for text analysis and mapping logic. Manual validation of tagging/categorization accuracy.",
+        "priority": "medium",
+        "dependencies": [
+          "6",
+          "7"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "9",
+        "title": "Implement Firebase Realtime Database Integration",
+        "description": "Replace localStorage with Firebase Realtime Database for shared, synchronized data storage (free tier).",
+        "details": "Set up Firebase project and Realtime Database. Use Firebase JS SDK v10.x. Implement authentication-less access (public, rules-based). Migrate CRUD logic from localStorage to Firebase. Implement offline support and sync. Handle quota limits (compression, pruning old data). Document data structure and security rules.",
+        "testStrategy": "Integration tests for CRUD operations and sync. Manual tests for multi-device sync and offline scenarios.",
+        "priority": "medium",
+        "dependencies": [
+          "2",
+          "8"
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "10",
+        "title": "PWA Enhancement, Export/Import, and Final Deployment",
+        "description": "Add PWA features (manifest, service worker), implement data export/import, and finalize deployment.",
+        "details": "Create `manifest.json` for PWA installability. Use Workbox v7.x to generate a service worker for offline caching. Implement JSON/CSV export and import for AI tool data. Test on Chrome, Safari, Firefox (desktop/mobile). Finalize deployment to GitHub Pages/Netlify. Run Lighthouse for PWA compliance and performance.",
+        "testStrategy": "Manual tests for PWA install, offline mode, export/import, and cross-browser compatibility. Automated Lighthouse audits.",
+        "priority": "medium",
+        "dependencies": [
+          "9"
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "version": "1.0.0",
+      "lastModified": "2025-11-10T15:51:30.409Z",
+      "taskCount": 10,
+      "completedCount": 0,
+      "tags": [
+        "master"
+      ]
+    }
+  }
+}

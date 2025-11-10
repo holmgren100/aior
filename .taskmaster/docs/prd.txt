@@ -1,0 +1,145 @@
+# PRD: AI-verktygsorganiserare
+
+## Projektöversikt
+Skapa en webbapplikation för att organisera, tagga och analysera AI-verktyg och program. Appen ska möjliggöra automatiserad import av innehåll från webbsidor, skärmdumpar och sociala medier med minimal manuell hantering. Fokus ligger på enkelhet, låg kostnad och snabb implementation.
+
+## Målgrupp
+- Privatpersoner som behöver organisera information om olika AI-verktyg
+- Professionella användare som vill analysera och jämföra AI-lösningar
+- AI-entusiaster som samlar information från många källor (Instagram, webbsidor, mail)
+
+## Funktionella krav
+
+### Kärnfunktionalitet
+1. **Datamodell för AI-verktyg** med följande attribut:
+   - Namn, URL, beskrivning
+   - Kategori (Marknadsföring, Assistent, Bildgenerering, etc.)
+   - Prismodell (Gratis, Freemium, Betald, Prenumeration)
+   - Kostnad (fritext)
+   - Taggar
+   - Betyg (1-5 stjärnor)
+   - Bilder (skärmdumpar, logotyper)
+   - Anteckningar
+
+2. **Inmatningsgränssnitt** för manuell och automatisk import:
+   - Formulär för manuell inmatning
+   - Bulk-import av URL:er
+   - Uppladdning av skärmdumpar/bilder
+   - Textanalys av kopierat innehåll
+   - Stöd för Instagram-innehåll
+
+3. **Automatisk taggning och kategorisering**:
+   - Webbskrapning för att extrahera relevant information
+   - OCR för att extrahera text från bilder
+   - Textanalys för att identifiera kategorier, taggar och prismodeller
+   - URL-extrahering från kopierad text
+
+4. **Sök- och filterfunktioner**:
+   - Sökning i all text
+   - Filtrering baserad på kategori, pris och betyg
+   - Sortering efter olika attribut
+
+5. **Delbar datalagring**:
+   - Möjlighet att exportera/importera data
+   - Synkronisering mellan enheter
+   - Backupfunktionalitet
+
+## Tekniska krav
+
+### Frontend
+- Ren HTML, CSS och JavaScript utan tunga ramverk
+- Responsiv design för mobil och desktop
+- PWA-funktionalitet för installation på mobila enheter
+
+### Backend (minimal)
+- Cloudflare Workers för webbskrapning (gratis tier)
+- OCR.space för textextrahering (gratis tier)
+- GitHub Pages eller Netlify för hosting (gratis)
+- Firebase Realtime Database för delad datalagring (gratis tier)
+
+### Integration
+- Instagram-innehåll via kopiering/skärmdumpar
+- Webbsidor via skrapning
+- Bilder via OCR
+
+## Avgränsningar
+- Ingen användarhantering/inloggning i första versionen
+- Ingen maskinlärning/AI på serversidan (för att hålla kostnaden nere)
+- Ingen komplicerad backend-infrastruktur
+
+## Användningsflöde
+
+1. **Grundläggande användarflöde**:
+   - Användaren hittar ett intressant AI-verktyg (webbsida, Instagram, mail)
+   - Användaren kopierar URL/text eller tar en skärmdump
+   - Användaren lägger till i systemet (manuellt eller via massimport)
+   - Systemet extraherar automatiskt relevant information och taggar
+   - Användaren kan söka/filtrera för att hitta verktyg för specifika behov
+
+2. **Automatiserat användarflöde**:
+   - Användaren kopierar ett helt mail med flera länkar
+   - Systemet extraherar automatiskt alla länkar
+   - Systemet analyserar varje länk och skapar poster
+   - Användaren får en organiserad databas utan manuellt arbete
+
+## Implementationsplan
+
+### Fas 1: Grundläggande applikation (1 dag)
+- Skapa HTML/CSS/JavaScript-struktur
+- Implementera lokal datalagring (localStorage)
+- Skapa grundläggande UI för inmatning och visning
+- Implementera sök- och filterfunktioner
+
+### Fas 2: Automatiserad import (1 dag)
+- Implementera Cloudflare Worker för webbskrapning
+- Integrera med OCR-tjänst för bildanalys
+- Skapa logik för automatisk taggning och kategorisering
+- Implementera massimport av URL:er och bilder
+
+### Fas 3: Delbar datalagring (1/2 dag)
+- Sätta upp Firebase Realtime Database
+- Ersätta lokal lagring med Firebase
+- Implementera export/import-funktioner
+
+### Fas 4: Mobilanpassning och deployment (1/2 dag)
+- Förbättra responsiv design
+- Implementera PWA-funktionalitet
+- Publicera på GitHub Pages eller Netlify
+- Testning och buggfixar
+
+## Uppskattad kostnad
+- **Utvecklingskostnad**: 0 kr (eget arbete)
+- **Hostingkostnad**: 0 kr (GitHub Pages eller Netlify)
+- **API-kostnader**:
+  - Cloudflare Workers: 0 kr (gratis tier: 100,000 requests/dag)
+  - OCR.space: 0 kr (gratis tier: 25,000 requests/månad)
+  - Firebase: 0 kr (gratis tier: 1GB lagring, 10GB transfer/månad)
+- **Total driftkostnad**: 0 kr/månad
+
+## Uppskattad tid
+- **Total utvecklingstid**: 3 dagar (24 arbetstimmar)
+- **Uppdelning**:
+  - Grundläggande applikation: 1 dag (8 timmar)
+  - Automatiserad import: 1 dag (8 timmar)
+  - Delbar datalagring: 1/2 dag (4 timmar)
+  - Mobilanpassning och deployment: 1/2 dag (4 timmar)
+
+## Risker och beroenden
+1. **API-begränsningar**:
+   - OCR-tjänster har begränsade gratiskvoter
+   - Webbskrapning kan blockas av vissa webbplatser
+   - Lösning: Implementera lokala fallbacks vid API-fel
+
+2. **Kompabilitet**:
+   - Olika webbläsare hanterar localStorage olika
+   - Lösning: Testa på flera plattformar, ha export/import som backup
+
+3. **Datavolymbegränsningar**:
+   - Firebase gratis tier har begränsningar
+   - Lösning: Implementera kompression och rensningsverktyg
+
+## Framtida utökningar (efter första versionen)
+1. Användarhantering för delning av verktyg mellan användare
+2. Automatisk övervakning av prisjusteringar
+3. Integration med AI för mer avancerad klassificering
+4. Automatisk import från mail eller RSS-flöden

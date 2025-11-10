@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-verktygsorganiserare</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>AI-verktygsorganiserare</h1>
+    
+    <div class="search-section">
+        <input type="text" id="search-input" class="search-input" placeholder="Sök på namn, beskrivning eller taggar...">
+        <button id="search-button">Sök</button>
+        <button id="reset-search">Återställ</button>
+    </div>
+    
+    <div class="filter-section">
+        <div class="filter-group">
+            <span class="filter-label">Kategori:</span>
+            <select id="category-filter" class="filter-select">
+                <option value="all">Alla</option>
+                <option value="Marknadsföring">Marknadsföring</option>
+                <option value="Assistent">Assistent</option>
+                <option value="Automatisering">Automatisering</option>
+                <option value="Bildgenerering">Bildgenerering</option>
+                <option value="Textgenerering">Textgenerering</option>
+                <option value="Videogenerering">Videogenerering</option>
+                <option value="Kodning">Kodning</option>
+                <option value="Analys">Analys</option>
+                <option value="Annat">Annat</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">Pris:</span>
+            <select id="price-filter" class="filter-select">
+                <option value="all">Alla</option>
+                <option value="free">Gratis</option>
+                <option value="freemium">Freemium</option>
+                <option value="paid">Betald</option>
+                <option value="subscription">Prenumeration</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <span class="filter-label">Betyg:</span>
+            <select id="rating-filter" class="filter-select">
+                <option value="all">Alla</option>
+                <option value="5">5 stjärnor</option>
+                <option value="4">4+ stjärnor</option>
+                <option value="3">3+ stjärnor</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="input-section">
+            <h2>Lägg till AI-verktyg</h2>
+            <form id="tool-form">
+                <div class="form-group">
+                    <label for="tool-name">Namn på verktyg:</label>
+                    <input type="text" id="tool-name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tool-url">URL/Hemsida:</label>
+                    <input type="url" id="tool-url" placeholder="https://...">
+                </div>
+                
+                <div class="form-group">
+                    <label for="tool-description">Beskrivning (vad gör det?):</label>
+                    <textarea id="tool-description" required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tool-category">Kategori:</label>
+                    <select id="tool-category" required>
+                        <option value="Marknadsföring">Marknadsföring</option>
+                        <option value="Assistent">Assistent</option>
+                        <option value="Automatisering">Automatisering</option>
+                        <option value="Bildgenerering">Bildgenerering</option>
+                        <option value="Textgenerering">Textgenerering</option>
+                        <option value="Videogenerering">Videogenerering</option>
+                        <option value="Kodning">Kodning</option>
+                        <option value="Analys">Analys</option>
+                        <option value="Annat">Annat</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tool-price">Prismodell:</label>
+                    <select id="tool-price" required>
+                        <option value="free">Gratis</option>
+                        <option value="freemium">Freemium</option>
+                        <option value="paid">Betald</option>
+                        <option value="subscription">Prenumeration</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tool-cost">Ungefärlig kostnad (valfritt):</label>
+                    <input type="text" id="tool-cost" placeholder="t.ex. $10/månad eller 99kr/år">
+                </div>
+                
+                <div class="form-group">
+                    <label for="tool-rating">Betyg (1-5):</label>
+                    <select id="tool-rating" required>
+                        <option value="5">5 - Utmärkt</option>
+                        <option value="4">4 - Mycket bra</option>
+                        <option value="3">3 - Bra</option>
+                        <option value="2">2 - OK</option>
+                        <option value="1">1 - Dålig</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Funktionstaggar:</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label tag-marknadsföring">
+                            <input type="checkbox" value="marknadsföring"> Marknadsföring
+                        </label>
+                        <label class="checkbox-label tag-assistenter">
+                            <input type="checkbox" value="assistent"> Assistent
+                        </label>
+                        <label class="checkbox-label tag-automatisering">
+                            <input type="checkbox" value="automatisering"> Automatisering
+                        </label>
+                        <label class="checkbox-label tag-text">
+                            <input type="checkbox" value="text"> Text
+                        </label>
+                        <label class="checkbox-label tag-bild">
+                            <input type="checkbox" value="bild"> Bild
+                        </label>
+                        <label class="checkbox-label tag-video">
+                            <input type="checkbox" value="video"> Video
+                        </label>
+                        <label class="checkbox-label tag-kod">
+                            <input type="checkbox" value="kod"> Kod
+                        </label>
+                        <label class="checkbox-label tag-analys">
+                            <input type="checkbox" value="analys"> Analys
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="custom-tags">Egna taggar (kommaseparerade):</label>
+                    <input type="text" id="custom-tags" placeholder="t.ex. openai, produktivitet, hemsidor">
+                </div>
+                
+                <div class="form-group">
+                    <label for="tool-notes">Anteckningar (för- och nackdelar, användningsområden):</label>
+                    <textarea id="tool-notes"></textarea>
+                </div>
+                
+                <button type="submit">Lägg till verktyg</button>
+            </form>
+            
+            <div class="export-import">
+                <h3>Exportera/Import
