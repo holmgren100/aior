@@ -100,38 +100,85 @@ class AIToolModel {
         return tools.find(t => t.id === id);
     }
 
+    // Förbättrad filterfunktion med Fuse.js för fuzzy-sökning
     static filter(criteria) {
         const tools = this.getAll();
+        let filteredTools = [...tools];
         
-        return tools.filter(tool => {
-            // Search text match
-            if (criteria.searchText) {
-                const searchText = criteria.searchText.toLowerCase();
-                const matchesSearch = 
+        // Använd fuzzy-sökning om Fuse.js finns tillgängligt och searchText är specificerat
+        if (criteria.searchText && typeof Fuse !== 'undefined') {
+            const options = {
+                includeScore: true,
+                threshold: 0.4, // Mindre värde ger striktare matchning
+                keys: [
+                    { name: 'name', weight: 2 }, // Namn har högre prioritet
+                    { name: 'description', weight: 1.5 },
+                    { name: 'notes', weight: 1 },
+                    { name: 'tags', weight: 1.3 }
+                ]
+            };
+            
+            const fuse = new Fuse(filteredTools, options);
+            const results = fuse.search(criteria.searchText);
+            filteredTools = results.map(result => result.item);
+        }
+        // Fallback till enkel sökning om Fuse.js inte är tillgängligt
+        else if (criteria.searchText) {
+            const searchText = criteria.searchText.toLowerCase();
+            filteredTools = filteredTools.filter(tool => {
+                return (
                     tool.name.toLowerCase().includes(searchText) ||
                     tool.description.toLowerCase().includes(searchText) ||
                     (tool.notes && tool.notes.toLowerCase().includes(searchText)) ||
-                    (tool.tags && tool.tags.some(tag => tag.toLowerCase().includes(searchText)));
-                
-                if (!matchesSearch) return false;
+                    (tool.tags && tool.tags.some(tag => tag.toLowerCase().includes(searchText)))
+                );
+            });
+        }
+        
+        // Filtrera efter kategori
+        if (criteria.category && criteria.category !== 'all') {
+            filteredTools = filteredTools.filter(tool => tool.category === criteria.category);
+        }
+        
+        // Filtrera efter prismodell
+        if (criteria.price && criteria.price !== 'all') {
+            filteredTools = filteredTools.filter(tool => tool.price === criteria.price);
+        }
+        
+        // Filtrera efter betyg
+        if (criteria.minRating) {
+            filteredTools = filteredTools.filter(tool => tool.rating >= criteria.minRating);
+        }
+        
+        // Sortera resultaten om sortering är specificerad
+        if (criteria.sortBy) {
+            filteredTools = this.sortTools(filteredTools, criteria.sortBy, criteria.sortDirection);
+        }
+        
+        return filteredTools;
+    }
+    
+    // Ny metod för sortering av verktyg
+    static sortTools(tools, sortBy, direction = 'desc') {
+        const directionMultiplier = direction === 'asc' ? 1 : -1;
+        
+        return [...tools].sort((a, b) => {
+            switch(sortBy) {
+                case 'name':
+                    return directionMultiplier * a.name.localeCompare(b.name);
+                case 'rating':
+                    return directionMultiplier * (a.rating - b.rating);
+                case 'date':
+                    return directionMultiplier * (new Date(a.dateAdded) - new Date(b.dateAdded));
+                case 'category':
+                    return directionMultiplier * a.category.localeCompare(b.category);
+                case 'price':
+                    // Egen sorteringslogik för priser
+                    const priceOrder = { free: 1, freemium: 2, paid: 3, subscription: 4 };
+                    return directionMultiplier * (priceOrder[a.price] - priceOrder[b.price]);
+                default:
+                    return directionMultiplier * (new Date(b.dateAdded) - new Date(a.dateAdded));
             }
-            
-            // Category filter
-            if (criteria.category && criteria.category !== 'all' && tool.category !== criteria.category) {
-                return false;
-            }
-            
-            // Price filter
-            if (criteria.price && criteria.price !== 'all' && tool.price !== criteria.price) {
-                return false;
-            }
-            
-            // Rating filter
-            if (criteria.minRating && tool.rating < criteria.minRating) {
-                return false;
-            }
-            
-            return true;
         });
     }
 }
@@ -150,8 +197,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const categoryFilter = document.getElementById('category-filter');
     const priceFilter = document.getElementById('price-filter');
     const ratingFilter = document.getElementById('rating-filter');
+    const sortBySelect = document.getElementById('sort-by');
+    const sortDirectionSelect = document.getElementById('sort-direction');
     const exportDataBtn = document.getElementById('export-data');
     const importDataBtn = document.getElementById('import-data');
+    
+    // Paginering
+    const ITEMS_PER_PAGE = 10;
+    let currentPage = 1;
+    
+    // Aktiva taggfilter
+    let activeTagFilters = [];
     
     // Visa alla verktyg när sidan laddas
     displayTools();
@@ -213,7 +269,17 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Hantera sökningar
     searchButton.addEventListener('click', function() {
+        resetPagination();
         displayTools();
+    });
+    
+    // När Enter trycks i sökfältet
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            resetPagination();
+            displayTools();
+            e.preventDefault();
+        }
     });
     
     resetButton.addEventListener('click', function() {
@@ -221,13 +287,36 @@ document.addEventListener('DOMContentLoaded', function() {
         categoryFilter.value = 'all';
         priceFilter.value = 'all';
         ratingFilter.value = 'all';
+        resetPagination();
         displayTools();
     });
     
     // Filter-ändringar
-    categoryFilter.addEventListener('change', displayTools);
-    priceFilter.addEventListener('change', displayTools);
-    ratingFilter.addEventListener('change', displayTools);
+    categoryFilter.addEventListener('change', function() {
+        resetPagination();
+        displayTools();
+    });
+    
+    priceFilter.addEventListener('change', function() {
+        resetPagination();
+        displayTools();
+    });
+    
+    ratingFilter.addEventListener('change', function() {
+        resetPagination();
+        displayTools();
+    });
+    
+    // Sorteringsändringar
+    sortBySelect.addEventListener('change', function() {
+        resetPagination();
+        displayTools();
+    });
+    
+    sortDirectionSelect.addEventListener('change', function() {
+        resetPagination();
+        displayTools();
+    });
     
     // Exportera data
     exportDataBtn.addEventListener('click', function() {
@@ -274,6 +363,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Uppdatera den lokala listan
                         toolsData = AIToolModel.getAll();
                         // Uppdatera visningen
+                        resetPagination();
                         displayTools();
                         showNotification(`Import slutförd! ${importedData.length} verktyg har importerats.`, 'success');
                     } else {
@@ -358,105 +448,243 @@ document.addEventListener('DOMContentLoaded', function() {
             notification.remove();
         }, 3000);
     }
+
+    // Hämta alla unika taggar
+    function getAllUniqueTags() {
+        const allTags = new Set();
+        toolsData.forEach(tool => {
+            if (tool.tags && Array.isArray(tool.tags)) {
+                tool.tags.forEach(tag => allTags.add(tag));
+            }
+        });
+        return Array.from(allTags).sort();
+    }
+
+    // Återställa paginering
+    function resetPagination() {
+        currentPage = 1;
+    }
     
     // Funktion för att visa verktyg med filtrering
     function displayTools() {
         // Hämta filtervärden
-        const searchText = searchInput.value.toLowerCase();
+        const searchText = searchInput.value;
         const categoryFilterValue = categoryFilter.value;
         const priceFilterValue = priceFilter.value;
         const ratingFilterValue = parseInt(ratingFilter.value) || 0;
+        const sortBy = sortBySelect.value;
+        const sortDirection = sortDirectionSelect.value;
         
-        // Använd datamodellen för filtrering
-        const filteredTools = AIToolModel.filter({
-            searchText: searchText || undefined,
-            category: categoryFilterValue,
-            price: priceFilterValue,
-            minRating: ratingFilterValue || undefined
-        }).sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
-        
-        // Rensa listan
-        toolsList.innerHTML = '';
-        
-        // Visa filterderade verktyg
-        if (filteredTools.length === 0) {
-            toolsList.innerHTML = '<div class="no-results">Inga verktyg hittades med de valda filtren.</div>';
-            return;
+        // Debounce för sökningen
+        clearTimeout(window.searchTimeout);
+        window.searchTimeout = setTimeout(() => {
+            // Använd datamodellen för filtrering och sortering
+            let filteredTools = AIToolModel.filter({
+                searchText: searchText || undefined,
+                category: categoryFilterValue,
+                price: priceFilterValue,
+                minRating: ratingFilterValue || undefined,
+                sortBy: sortBy,
+                sortDirection: sortDirection
+            });
+            
+            // Tillämpa taggfilter om det finns aktiva
+            if (activeTagFilters.length > 0) {
+                filteredTools = filteredTools.filter(tool => {
+                    if (!tool.tags || !Array.isArray(tool.tags)) return false;
+                    return activeTagFilters.every(filterTag => 
+                        tool.tags.some(toolTag => 
+                            toolTag.toLowerCase() === filterTag.toLowerCase()
+                        )
+                    );
+                });
+            }
+            
+            // Rensa listan
+            toolsList.innerHTML = '';
+            
+            // Visa filterderade verktyg
+            if (filteredTools.length === 0) {
+                toolsList.innerHTML = '<div class="no-results">Inga verktyg hittades med de valda filtren.</div>';
+                return;
+            }
+            
+            // Implementera paginering för större datamängder
+            const totalPages = Math.ceil(filteredTools.length / ITEMS_PER_PAGE);
+            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, filteredTools.length);
+            const pageTools = filteredTools.slice(startIndex, endIndex);
+            
+            // Uppdatera sökresultatstatistik
+            updateSearchStats(filteredTools.length, toolsData.length, currentPage, totalPages);
+            
+            // Visa verktyg
+            pageTools.forEach(tool => {
+                const toolCard = document.createElement('div');
+                toolCard.className = 'tool-card';
+                toolCard.setAttribute('role', 'listitem');
+                
+                // Hämta prisinformation
+                let priceText = '';
+                switch(tool.price) {
+                    case 'free': priceText = 'Gratis'; break;
+                    case 'freemium': priceText = 'Freemium'; break;
+                    case 'paid': priceText = 'Betald'; break;
+                    case 'subscription': priceText = 'Prenumeration'; break;
+                }
+                if (tool.cost) {
+                    priceText += ` (${tool.cost})`;
+                }
+                
+                // Skapa taggar-HTML
+                const tagsHtml = (tool.tags || []).map(tag => {
+                    // Definiera CSS-klasser för specifika taggar
+                    let tagClass = '';
+                    if (['marknadsföring', 'assistenter', 'automatisering', 'text', 'bild', 'video', 'kod', 'analys'].includes(tag)) {
+                        tagClass = `tag-${tag}`;
+                    }
+                    
+                    return `<span class="tool-tag ${tagClass}">${tag}</span>`;
+                }).join('');
+                
+                toolCard.innerHTML = `
+                    <div class="tool-header">
+                        <h3 class="tool-title">${tool.name}</h3>
+                        <div class="tool-rating" aria-label="${tool.rating} av 5 stjärnor">${'★'.repeat(tool.rating)}</div>
+                    </div>
+                    <div class="tool-category">${tool.category}</div>
+                    <div class="tool-price">${priceText}</div>
+                    ${tool.url ? `<div class="tool-url"><a href="${tool.url}" target="_blank" aria-label="Besök ${tool.name} webbplats">${tool.url}</a></div>` : ''}
+                    <div class="tool-description">${tool.description}</div>
+                    ${tool.notes ? `<div class="tool-notes"><strong>Anteckningar:</strong> ${tool.notes}</div>` : ''}
+                    <div class="tool-tags">${tagsHtml}</div>
+                    <div class="tool-actions">
+                        <button class="edit-tool" data-id="${tool.id}" aria-label="Redigera ${tool.name}">Redigera</button>
+                        <button class="delete-tool" data-id="${tool.id}" aria-label="Ta bort ${tool.name}">Ta bort</button>
+                    </div>
+                `;
+                
+                // Lägg till knapphändelser
+                const editBtn = toolCard.querySelector('.edit-tool');
+                const deleteBtn = toolCard.querySelector('.delete-tool');
+                
+                editBtn.addEventListener('click', function() {
+                    const toolId = this.getAttribute('data-id');
+                    editTool(toolId);
+                });
+                
+                deleteBtn.addEventListener('click', function() {
+                    const toolId = this.getAttribute('data-id');
+                    const toolToDelete = AIToolModel.find(toolId);
+                    
+                    if (confirm(`Är du säker på att du vill ta bort "${toolToDelete.name}"?`)) {
+                        try {
+                            AIToolModel.delete(toolId);
+                            // Uppdatera den lokala listan
+                            toolsData = AIToolModel.getAll();
+                            displayTools();
+                            showNotification(`"${toolToDelete.name}" har tagits bort.`, 'info');
+                        } catch (error) {
+                            showNotification('Fel vid borttagning: ' + error.message, 'error');
+                        }
+                    }
+                });
+                
+                toolsList.appendChild(toolCard);
+            });
+            
+            // Visa paginering om det finns fler sidor
+            if (totalPages > 1) {
+                displayPagination(currentPage, totalPages);
+            }
+        }, 300); // 300ms debounce för bättre prestanda
+    }
+    
+    // Funktion för att visa paginering
+    function displayPagination(current, total) {
+        // Ta bort befintlig paginering om den finns
+        const existingPagination = document.querySelector('.pagination');
+        if (existingPagination) {
+            existingPagination.remove();
         }
         
-        filteredTools.forEach(tool => {
-            const toolCard = document.createElement('div');
-            toolCard.className = 'tool-card';
-            toolCard.setAttribute('role', 'listitem');
-            
-            // Hämta prisinformation
-            let priceText = '';
-            switch(tool.price) {
-                case 'free': priceText = 'Gratis'; break;
-                case 'freemium': priceText = 'Freemium'; break;
-                case 'paid': priceText = 'Betald'; break;
-                case 'subscription': priceText = 'Prenumeration'; break;
-            }
-            if (tool.cost) {
-                priceText += ` (${tool.cost})`;
-            }
-            
-            // Skapa taggar-HTML
-            const tagsHtml = (tool.tags || []).map(tag => {
-                // Definiera CSS-klasser för specifika taggar
-                let tagClass = '';
-                if (['marknadsföring', 'assistenter', 'automatisering', 'text', 'bild', 'video', 'kod', 'analys'].includes(tag)) {
-                    tagClass = `tag-${tag}`;
-                }
-                
-                return `<span class="tool-tag ${tagClass}">${tag}</span>`;
-            }).join('');
-            
-            toolCard.innerHTML = `
-                <div class="tool-header">
-                    <h3 class="tool-title">${tool.name}</h3>
-                    <div class="tool-rating" aria-label="${tool.rating} av 5 stjärnor">${'★'.repeat(tool.rating)}</div>
-                </div>
-                <div class="tool-category">${tool.category}</div>
-                <div class="tool-price">${priceText}</div>
-                ${tool.url ? `<div class="tool-url"><a href="${tool.url}" target="_blank" aria-label="Besök ${tool.name} webbplats">${tool.url}</a></div>` : ''}
-                <div class="tool-description">${tool.description}</div>
-                ${tool.notes ? `<div class="tool-notes"><strong>Anteckningar:</strong> ${tool.notes}</div>` : ''}
-                <div class="tool-tags">${tagsHtml}</div>
-                <div class="tool-actions">
-                    <button class="edit-tool" data-id="${tool.id}" aria-label="Redigera ${tool.name}">Redigera</button>
-                    <button class="delete-tool" data-id="${tool.id}" aria-label="Ta bort ${tool.name}">Ta bort</button>
-                </div>
-            `;
-            
-            // Lägg till knapphändelser
-            const editBtn = toolCard.querySelector('.edit-tool');
-            const deleteBtn = toolCard.querySelector('.delete-tool');
-            
-            editBtn.addEventListener('click', function() {
-                const toolId = this.getAttribute('data-id');
-                editTool(toolId);
+        const paginationContainer = document.createElement('div');
+        paginationContainer.className = 'pagination';
+        paginationContainer.setAttribute('role', 'navigation');
+        paginationContainer.setAttribute('aria-label', 'Sidnavigering');
+        
+        // Föregående sida
+        if (current > 1) {
+            const prevButton = document.createElement('button');
+            prevButton.className = 'pagination-button';
+            prevButton.textContent = '« Föregående';
+            prevButton.addEventListener('click', () => {
+                currentPage--;
+                displayTools();
+                // Scrolla till toppen av listan
+                toolsList.scrollIntoView({ behavior: 'smooth' });
             });
-            
-            deleteBtn.addEventListener('click', function() {
-                const toolId = this.getAttribute('data-id');
-                const toolToDelete = AIToolModel.find(toolId);
-                
-                if (confirm(`Är du säker på att du vill ta bort "${toolToDelete.name}"?`)) {
-                    try {
-                        AIToolModel.delete(toolId);
-                        // Uppdatera den lokala listan
-                        toolsData = AIToolModel.getAll();
-                        displayTools();
-                        showNotification(`"${toolToDelete.name}" har tagits bort.`, 'info');
-                    } catch (error) {
-                        showNotification('Fel vid borttagning: ' + error.message, 'error');
-                    }
-                }
+            paginationContainer.appendChild(prevButton);
+        }
+        
+        // Sidnummer
+        const pageInfo = document.createElement('span');
+        pageInfo.className = 'pagination-info';
+        pageInfo.textContent = `Sida ${current} av ${total}`;
+        paginationContainer.appendChild(pageInfo);
+        
+        // Nästa sida
+        if (current < total) {
+            const nextButton = document.createElement('button');
+            nextButton.className = 'pagination-button';
+            nextButton.textContent = 'Nästa »';
+            nextButton.addEventListener('click', () => {
+                currentPage++;
+                displayTools();
+                // Scrolla till toppen av listan
+                toolsList.scrollIntoView({ behavior: 'smooth' });
             });
+            paginationContainer.appendChild(nextButton);
+        }
+        
+        toolsList.parentElement.appendChild(paginationContainer);
+    }
+
+    // Uppdatera sökstatistik
+    function updateSearchStats(filteredCount, totalCount, currentPage, totalPages) {
+        // Ta bort befintlig statistikruta om den finns
+        const existingStats = document.querySelector('.search-stats');
+        if (existingStats) {
+            existingStats.remove();
+        }
+        
+        // Skapa statistikruta
+        const statsDiv = document.createElement('div');
+        statsDiv.className = 'search-stats';
+        
+        if (filteredCount < totalCount) {
+            statsDiv.textContent = `Visar ${filteredCount} av ${totalCount} verktyg`;
             
-            toolsList.appendChild(toolCard);
-        });
+            // Lägg till paginering om det behövs
+            if (totalPages > 1) {
+                statsDiv.textContent += ` (Sida ${currentPage} av ${totalPages})`;
+            }
+        } else {
+            statsDiv.textContent = `Totalt ${totalCount} verktyg`;
+            
+            // Lägg till paginering om det behövs
+            if (totalPages > 1) {
+                statsDiv.textContent += ` (Sida ${currentPage} av ${totalPages})`;
+            }
+        }
+        
+        statsDiv.style.textAlign = 'right';
+        statsDiv.style.fontSize = '14px';
+        statsDiv.style.color = '#666';
+        statsDiv.style.marginBottom = '10px';
+        
+        // Lägg till i DOM före verktygsrutnätet
+        toolsList.parentElement.insertBefore(statsDiv, toolsList);
     }
     
     // Funktion för att redigera ett verktyg
@@ -661,6 +889,81 @@ document.addEventListener('DOMContentLoaded', function() {
             @keyframes highlightNew {
                 0% { background-color: #fff9c4; }
                 100% { background-color: white; }
+            }
+
+            .pagination {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin-top: 20px;
+                gap: 15px;
+            }
+            
+            .pagination-button {
+                padding: 8px 15px;
+                border-radius: 4px;
+                background-color: #f1f1f1;
+                border: none;
+                cursor: pointer;
+                transition: background-color 0.2s;
+            }
+            
+            .pagination-button:hover {
+                background-color: #3498db;
+                color: white;
+            }
+            
+            .pagination-info {
+                font-size: 14px;
+                color: #666;
+            }
+
+            .sort-section {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 20px;
+                flex-wrap: wrap;
+                background: white;
+                padding: 15px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            }
+            
+            .sort-group {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                background: #f1f1f1;
+                padding: 5px 10px;
+                border-radius: 4px;
+                transition: background-color 0.2s;
+            }
+            
+            .sort-group:hover {
+                background: #e9ecef;
+            }
+            
+            .sort-label {
+                font-weight: bold;
+                font-size: 14px;
+            }
+            
+            .sort-select {
+                width: auto;
+                padding: 5px;
+            }
+            
+            /* Anpassning för mobila enheter */
+            @media (max-width: 768px) {
+                .sort-section {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+                
+                .sort-group {
+                    width: 100%;
+                    justify-content: space-between;
+                }
             }
         `;
         document.head.appendChild(style);

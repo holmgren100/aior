@@ -48,15 +48,43 @@
                 <option value="subscription">Prenumeration</option>
             </select>
         </div>
-        <div class="filter-group">
-            <span class="filter-label" id="rating-label">Betyg:</span>
-            <select id="rating-filter" class="filter-select" aria-labelledby="rating-label">
-                <option value="all">Alla</option>
-                <option value="5">5 stjärnor</option>
-                <option value="4">4+ stjärnor</option>
-                <option value="3">3+ stjärnor</option>
+        <div class="filter-group filter-tags-group">
+            <span class="filter-label">Taggar:</span>
+            <div class="tags-filter-input">
+                <input type="text" id="tags-filter" placeholder="Filtrera på taggar...">
+                <div id="tags-suggestions" class="tags-suggestions"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sort-section" role="group" aria-label="Sorteringsalternativ">
+        <div class="sort-group">
+            <span class="sort-label" id="sort-label">Sortera efter:</span>
+            <select id="sort-by" class="sort-select" aria-labelledby="sort-label">
+                <option value="date">Datum (senast först)</option>
+                <option value="name">Namn</option>
+                <option value="rating">Betyg</option>
+                <option value="category">Kategori</option>
+                <option value="price">Prismodell</option>
             </select>
         </div>
+        <div class="sort-group">
+            <span class="sort-label" id="direction-label">Riktning:</span>
+            <select id="sort-direction" class="sort-select" aria-labelledby="direction-label">
+                <option value="desc">Fallande</option>
+                <option value="asc">Stigande</option>
+            </select>
+        </div>
+    </div>
+        
+    <div class="filter-group">
+        <span class="filter-label" id="rating-label">Betyg:</span>
+        <select id="rating-filter" class="filter-select" aria-labelledby="rating-label">
+            <option value="all">Alla</option>
+            <option value="5">5 stjärnor</option>
+            <option value="4">4+ stjärnor</option>
+            <option value="3">3+ stjärnor</option>
+        </select>
     </div>
     
     <div class="container">
@@ -180,7 +208,7 @@
             </div>
         </div>
     </div>
-    
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
     <script src="app.js"></script>
 </body>
 </html>
