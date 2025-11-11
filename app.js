@@ -136,7 +136,7 @@ class AIToolModel {
     }
 }
 
-// Uppdatera existerande kod för att använda den nya datamodellen
+// Main Application Code
 document.addEventListener('DOMContentLoaded', function() {
     // Initial data load
     let toolsData = AIToolModel.getAll();
@@ -202,8 +202,12 @@ document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.checkbox-group input').forEach(cb => {
                 cb.checked = false;
             });
+
+            // Notifiera användaren om att verktyget har lagts till
+            const toolName = tool.name;
+            showNotification(`${toolName} har lagts till!`, 'success');
         } catch (error) {
-            alert('Fel vid skapande av verktyg: ' + error.message);
+            showNotification('Fel vid skapande av verktyg: ' + error.message, 'error');
         }
     });
     
@@ -238,6 +242,8 @@ document.addEventListener('DOMContentLoaded', function() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+
+        showNotification('Datan har exporterats till en fil!', 'success');
     });
     
     // Importera data
@@ -269,20 +275,89 @@ document.addEventListener('DOMContentLoaded', function() {
                         toolsData = AIToolModel.getAll();
                         // Uppdatera visningen
                         displayTools();
-                        alert('Import slutförd!');
+                        showNotification(`Import slutförd! ${importedData.length} verktyg har importerats.`, 'success');
                     } else {
-                        alert('Ogiltig filformat. Filen måste innehålla en JSON-array.');
+                        showNotification('Ogiltig filformat. Filen måste innehålla en JSON-array.', 'error');
                     }
                 } catch (err) {
-                    alert('Fel vid importering: ' + err.message);
+                    showNotification('Fel vid importering: ' + err.message, 'error');
                 }
             };
             
             reader.readAsText(file);
         } else {
-            alert('Vänligen välj en fil att importera.');
+            showNotification('Vänligen välj en fil att importera.', 'info');
         }
     });
+
+    // Funktion för att visa notifikationer
+    function showNotification(message, type = 'info') {
+        // Ta bort eventuella existerande notifikationer
+        const existingNotification = document.querySelector('.notification');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+        
+        // Skapa notifikationselement
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        notification.style.position = 'fixed';
+        notification.style.top = '20px';
+        notification.style.right = '20px';
+        notification.style.padding = '12px 20px';
+        notification.style.borderRadius = '4px';
+        notification.style.zIndex = '1000';
+        notification.style.maxWidth = '300px';
+        notification.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+        notification.style.fontWeight = '500';
+        notification.style.animation = 'fadeIn 0.3s, fadeOut 0.3s 2.7s forwards';
+        
+        // Färger baserade på typ
+        switch(type) {
+            case 'success':
+                notification.style.backgroundColor = '#2ecc71';
+                notification.style.color = 'white';
+                break;
+            case 'error':
+                notification.style.backgroundColor = '#e74c3c';
+                notification.style.color = 'white';
+                break;
+            case 'warning':
+                notification.style.backgroundColor = '#f39c12';
+                notification.style.color = 'white';
+                break;
+            default: // info
+                notification.style.backgroundColor = '#3498db';
+                notification.style.color = 'white';
+                break;
+        }
+        
+        // Lägg till i DOM
+        document.body.appendChild(notification);
+        
+        // Lägg till CSS för animation
+        if (!document.getElementById('notification-style')) {
+            const style = document.createElement('style');
+            style.id = 'notification-style';
+            style.textContent = `
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(-20px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes fadeOut {
+                    from { opacity: 1; transform: translateY(0); }
+                    to { opacity: 0; transform: translateY(-20px); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        // Ta bort notifikationen efter 3 sekunder
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
     
     // Funktion för att visa verktyg med filtrering
     function displayTools() {
@@ -305,13 +380,14 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Visa filterderade verktyg
         if (filteredTools.length === 0) {
-            toolsList.innerHTML = '<p>Inga verktyg hittades med de valda filtren.</p>';
+            toolsList.innerHTML = '<div class="no-results">Inga verktyg hittades med de valda filtren.</div>';
             return;
         }
         
         filteredTools.forEach(tool => {
             const toolCard = document.createElement('div');
             toolCard.className = 'tool-card';
+            toolCard.setAttribute('role', 'listitem');
             
             // Hämta prisinformation
             let priceText = '';
@@ -339,17 +415,17 @@ document.addEventListener('DOMContentLoaded', function() {
             toolCard.innerHTML = `
                 <div class="tool-header">
                     <h3 class="tool-title">${tool.name}</h3>
-                    <div class="tool-rating">${'★'.repeat(tool.rating)}</div>
+                    <div class="tool-rating" aria-label="${tool.rating} av 5 stjärnor">${'★'.repeat(tool.rating)}</div>
                 </div>
                 <div class="tool-category">${tool.category}</div>
                 <div class="tool-price">${priceText}</div>
-                ${tool.url ? `<div class="tool-url"><a href="${tool.url}" target="_blank">${tool.url}</a></div>` : ''}
+                ${tool.url ? `<div class="tool-url"><a href="${tool.url}" target="_blank" aria-label="Besök ${tool.name} webbplats">${tool.url}</a></div>` : ''}
                 <div class="tool-description">${tool.description}</div>
                 ${tool.notes ? `<div class="tool-notes"><strong>Anteckningar:</strong> ${tool.notes}</div>` : ''}
                 <div class="tool-tags">${tagsHtml}</div>
                 <div class="tool-actions">
-                    <button class="edit-tool" data-id="${tool.id}">Redigera</button>
-                    <button class="delete-tool" data-id="${tool.id}">Ta bort</button>
+                    <button class="edit-tool" data-id="${tool.id}" aria-label="Redigera ${tool.name}">Redigera</button>
+                    <button class="delete-tool" data-id="${tool.id}" aria-label="Ta bort ${tool.name}">Ta bort</button>
                 </div>
             `;
             
@@ -364,14 +440,17 @@ document.addEventListener('DOMContentLoaded', function() {
             
             deleteBtn.addEventListener('click', function() {
                 const toolId = this.getAttribute('data-id');
-                if (confirm('Är du säker på att du vill ta bort detta verktyg?')) {
+                const toolToDelete = AIToolModel.find(toolId);
+                
+                if (confirm(`Är du säker på att du vill ta bort "${toolToDelete.name}"?`)) {
                     try {
                         AIToolModel.delete(toolId);
                         // Uppdatera den lokala listan
                         toolsData = AIToolModel.getAll();
                         displayTools();
+                        showNotification(`"${toolToDelete.name}" har tagits bort.`, 'info');
                     } catch (error) {
-                        alert('Fel vid borttagning: ' + error.message);
+                        showNotification('Fel vid borttagning: ' + error.message, 'error');
                     }
                 }
             });
@@ -383,7 +462,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Funktion för att redigera ett verktyg
     function editTool(id) {
         // För närvarande bara en platshållare
-        alert('Redigering kommer i nästa version!');
+        showNotification('Redigering kommer i nästa version!', 'info');
         
         // När implementerad, ladda verktyg med:
         // const tool = AIToolModel.find(id);
@@ -439,6 +518,157 @@ document.addEventListener('DOMContentLoaded', function() {
         toolsData = AIToolModel.getAll();
         displayTools();
     }
-});
-```
 
+    // UI-förbättringar
+    function setupFocusHandling() {
+        // När ett verktyg läggs till, fokusera på ett lämpligt element
+        document.getElementById('tool-form').addEventListener('submit', function() {
+            // Efter formuläret skickas in och återställs, fokusera på namn-fältet
+            setTimeout(() => {
+                document.getElementById('tool-name').focus();
+            }, 100);
+        });
+        
+        // Förbättrad tangentbordsnavigation för filter
+        const filterSelects = document.querySelectorAll('.filter-select');
+        filterSelects.forEach(select => {
+            select.addEventListener('keydown', function(e) {
+                // Om användaren trycker på Enter efter att ha valt ett filter, utför filtrering
+                if (e.key === 'Enter') {
+                    displayTools();
+                }
+            });
+        });
+
+        // Förbättrad sökfunktion med Enter-tangent
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                searchButton.click();
+                e.preventDefault();
+            }
+        });
+    }
+
+    // Lägg till tooltips för bättre UX
+    function addTooltips() {
+        const elements = [
+            { id: 'export-data', text: 'Exportera dina AI-verktyg till en JSON-fil för backup eller delning' },
+            { id: 'import-data', text: 'Importera AI-verktyg från en tidigare exporterad JSON-fil' },
+            { id: 'search-button', text: 'Sök bland dina sparade AI-verktyg' },
+            { id: 'reset-search', text: 'Återställ alla filter och sökresultat' }
+        ];
+        
+        elements.forEach(el => {
+            const element = document.getElementById(el.id);
+            if (element) {
+                element.setAttribute('title', el.text);
+            }
+        });
+    }
+
+    // Förbättrad felhantering i formulär
+    function enhanceFormValidation() {
+        const form = document.getElementById('tool-form');
+        
+        // Visa valideringsmeddelanden direkt vid inmatning
+        const requiredFields = form.querySelectorAll('[required]');
+        requiredFields.forEach(field => {
+            field.addEventListener('invalid', function(e) {
+                // Förhindra standardpopup
+                e.preventDefault();
+                
+                // Anpassa valideringsmeddelanden
+                if (field.validity.valueMissing) {
+                    this.setCustomValidity('Detta fält är obligatoriskt');
+                } else if (field.validity.typeMismatch && field.type === 'url') {
+                    this.setCustomValidity('Ange en giltig URL (t.ex. https://exempel.se)');
+                } else {
+                    this.setCustomValidity('');
+                }
+                
+                // Visuell indikation
+                field.style.borderColor = '#e74c3c';
+                
+                // Visa meddelande
+                const errorElement = document.createElement('div');
+                errorElement.className = 'error-message';
+                errorElement.textContent = this.validationMessage;
+                errorElement.style.color = '#e74c3c';
+                errorElement.style.fontSize = '12px';
+                errorElement.style.marginTop = '5px';
+                
+                // Ta bort tidigare felmeddelanden
+                const existingError = field.parentElement.querySelector('.error-message');
+                if (existingError) {
+                    field.parentElement.removeChild(existingError);
+                }
+                
+                field.parentElement.appendChild(errorElement);
+                
+                // Återställ valideringen så den kan utlösas igen
+                setTimeout(() => this.setCustomValidity(''), 0);
+            });
+            
+            field.addEventListener('input', function() {
+                // Återställ visuell indikation
+                this.style.borderColor = '';
+                
+                // Ta bort felmeddelande
+                const errorElement = this.parentElement.querySelector('.error-message');
+                if (errorElement) {
+                    this.parentElement.removeChild(errorElement);
+                }
+            });
+        });
+        
+        // Förbättra visningen vid formulärsändning
+        form.addEventListener('submit', function() {
+            // Lägg till en visuell indikation för att visa att formuläret skickas
+            const submitButton = this.querySelector('button[type="submit"]');
+            const originalText = submitButton.textContent;
+            submitButton.textContent = 'Sparar...';
+            
+            // Återställ knappen efter en kort stund
+            setTimeout(() => {
+                submitButton.textContent = originalText;
+            }, 500);
+        });
+    }
+
+    // Förbättrad verktygsvisning
+    function enhanceToolDisplay() {
+        // Om det inte finns några verktyg, visa ett meddelande
+        if (toolsData.length === 0) {
+            const noResults = document.createElement('div');
+            noResults.className = 'no-results';
+            noResults.textContent = 'Inga AI-verktyg har lagts till ännu. Använd formuläret till vänster för att lägga till ditt första verktyg.';
+            toolsList.appendChild(noResults);
+        }
+        
+        // Lägg till animation när ett nytt verktyg läggs till
+        document.getElementById('tool-form').addEventListener('submit', function() {
+            setTimeout(() => {
+                const newTool = document.querySelector('.tool-card:first-child');
+                if (newTool) {
+                    newTool.style.animation = 'highlightNew 2s ease-out';
+                }
+            }, 100);
+        });
+        
+        // Lägg till CSS för animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes highlightNew {
+                0% { background-color: #fff9c4; }
+                100% { background-color: white; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    // Aktivera alla UI-förbättringar
+    setupFocusHandling();
+    addTooltips();
+    enhanceFormValidation();
+    enhanceToolDisplay();
+});

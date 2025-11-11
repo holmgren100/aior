@@ -3,22 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Organisera, tagga och analysera AI-verktyg och program">
+    <meta name="theme-color" content="#3498db">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="AI-verktyg">
     <title>AI-verktygsorganiserare</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <h1>AI-verktygsorganiserare</h1>
     
-    <div class="search-section">
-        <input type="text" id="search-input" class="search-input" placeholder="Sök på namn, beskrivning eller taggar...">
-        <button id="search-button">Sök</button>
-        <button id="reset-search">Återställ</button>
+    <div class="search-section" role="search" aria-label="Sök efter AI-verktyg">
+        <input type="text" id="search-input" class="search-input" 
+               placeholder="Sök på namn, beskrivning eller taggar..." 
+               aria-label="Söktext">
+        <button id="search-button" aria-label="Utför sökning">Sök</button>
+        <button id="reset-search" aria-label="Återställ sökfilter">Återställ</button>
     </div>
     
-    <div class="filter-section">
+    <div class="filter-section" role="group" aria-label="Filteralternativ">
         <div class="filter-group">
-            <span class="filter-label">Kategori:</span>
-            <select id="category-filter" class="filter-select">
+            <span class="filter-label" id="category-label">Kategori:</span>
+            <select id="category-filter" class="filter-select" aria-labelledby="category-label">
                 <option value="all">Alla</option>
                 <option value="Marknadsföring">Marknadsföring</option>
                 <option value="Assistent">Assistent</option>
@@ -32,8 +39,8 @@
             </select>
         </div>
         <div class="filter-group">
-            <span class="filter-label">Pris:</span>
-            <select id="price-filter" class="filter-select">
+            <span class="filter-label" id="price-label">Pris:</span>
+            <select id="price-filter" class="filter-select" aria-labelledby="price-label">
                 <option value="all">Alla</option>
                 <option value="free">Gratis</option>
                 <option value="freemium">Freemium</option>
@@ -42,8 +49,8 @@
             </select>
         </div>
         <div class="filter-group">
-            <span class="filter-label">Betyg:</span>
-            <select id="rating-filter" class="filter-select">
+            <span class="filter-label" id="rating-label">Betyg:</span>
+            <select id="rating-filter" class="filter-select" aria-labelledby="rating-label">
                 <option value="all">Alla</option>
                 <option value="5">5 stjärnor</option>
                 <option value="4">4+ stjärnor</option>
@@ -54,11 +61,11 @@
     
     <div class="container">
         <div class="input-section">
-            <h2>Lägg till AI-verktyg</h2>
-            <form id="tool-form">
+            <h2 id="form-heading">Lägg till AI-verktyg</h2>
+            <form id="tool-form" aria-labelledby="form-heading">
                 <div class="form-group">
                     <label for="tool-name">Namn på verktyg:</label>
-                    <input type="text" id="tool-name" required>
+                    <input type="text" id="tool-name" required aria-required="true">
                 </div>
                 
                 <div class="form-group">
@@ -68,12 +75,12 @@
                 
                 <div class="form-group">
                     <label for="tool-description">Beskrivning (vad gör det?):</label>
-                    <textarea id="tool-description" required></textarea>
+                    <textarea id="tool-description" required aria-required="true"></textarea>
                 </div>
                 
                 <div class="form-group">
                     <label for="tool-category">Kategori:</label>
-                    <select id="tool-category" required>
+                    <select id="tool-category" required aria-required="true">
                         <option value="Marknadsföring">Marknadsföring</option>
                         <option value="Assistent">Assistent</option>
                         <option value="Automatisering">Automatisering</option>
@@ -88,7 +95,7 @@
                 
                 <div class="form-group">
                     <label for="tool-price">Prismodell:</label>
-                    <select id="tool-price" required>
+                    <select id="tool-price" required aria-required="true">
                         <option value="free">Gratis</option>
                         <option value="freemium">Freemium</option>
                         <option value="paid">Betald</option>
@@ -103,7 +110,7 @@
                 
                 <div class="form-group">
                     <label for="tool-rating">Betyg (1-5):</label>
-                    <select id="tool-rating" required>
+                    <select id="tool-rating" required aria-required="true">
                         <option value="5">5 - Utmärkt</option>
                         <option value="4">4 - Mycket bra</option>
                         <option value="3">3 - Bra</option>
@@ -113,8 +120,8 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Funktionstaggar:</label>
-                    <div class="checkbox-group">
+                    <label id="tags-label">Funktionstaggar:</label>
+                    <div class="checkbox-group" role="group" aria-labelledby="tags-label">
                         <label class="checkbox-label tag-marknadsföring">
                             <input type="checkbox" value="marknadsföring"> Marknadsföring
                         </label>
@@ -152,8 +159,28 @@
                     <textarea id="tool-notes"></textarea>
                 </div>
                 
-                <button type="submit">Lägg till verktyg</button>
+                <button type="submit" aria-label="Lägg till verktyg i listan">Lägg till verktyg</button>
             </form>
             
             <div class="export-import">
-                <h3>Exportera/Import
+                <h3>Exportera/Importera data</h3>
+                <button id="export-data" aria-label="Exportera alla verktyg till JSON-fil" title="Exportera dina AI-verktyg till en JSON-fil för backup eller delning">Exportera till fil</button>
+                <div class="form-group">
+                    <label for="import-file">Importera från fil:</label>
+                    <input type="file" id="import-file" accept=".json" aria-label="Välj JSON-fil att importera">
+                </div>
+                <button id="import-data" aria-label="Importera verktyg från JSON-fil" title="Importera AI-verktyg från en tidigare exporterad JSON-fil">Importera</button>
+            </div>
+        </div>
+        
+        <div class="tools-section">
+            <h2>Dina AI-verktyg</h2>
+            <div id="tools-list" class="tools-list" role="list" aria-label="Lista över AI-verktyg">
+                <!-- Verktyg kommer att visas här -->
+            </div>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
