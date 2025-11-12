@@ -62,7 +62,7 @@
         "dependencies": [
           "4"
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -75,7 +75,7 @@
         "dependencies": [
           "5"
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -135,9 +135,9 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2025-11-12T00:00:00.000Z",
+      "lastModified": "2025-11-12T01:00:00.000Z",
       "taskCount": 10,
-      "completedCount": 4,
+      "completedCount": 6,
       "tags": [
         "master"
       ]

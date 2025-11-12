@@ -183,6 +183,15 @@ class AIToolModel {
     }
 }
 
+// Configuration
+const CONFIG = {
+    // Cloudflare Worker URL for metadata scraping
+    // Set this to your deployed worker URL, or leave empty to disable
+    CLOUDFLARE_WORKER_URL: '', // e.g., 'https://metadata-scraper.yourname.workers.dev'
+    // Enable metadata scraping (set to false if worker not deployed)
+    ENABLE_METADATA_SCRAPING: false
+};
+
 // Main Application Code
 document.addEventListener('DOMContentLoaded', function() {
     // Initial data load
@@ -501,6 +510,35 @@ document.addEventListener('DOMContentLoaded', function() {
         importUrlsBtn.style.display = 'inline-flex';
     }
 
+    // Hämta metadata från Cloudflare Worker
+    async function fetchMetadata(url) {
+        if (!CONFIG.ENABLE_METADATA_SCRAPING || !CONFIG.CLOUDFLARE_WORKER_URL) {
+            return null;
+        }
+
+        try {
+            const response = await fetch(CONFIG.CLOUDFLARE_WORKER_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url }),
+                signal: AbortSignal.timeout(15000) // 15 second timeout
+            });
+
+            if (!response.ok) {
+                console.error('Metadata fetch failed:', response.status);
+                return null;
+            }
+
+            const metadata = await response.json();
+            return metadata;
+        } catch (error) {
+            console.error('Error fetching metadata:', error);
+            return null;
+        }
+    }
+
     // Importera valda URL:er
     importUrlsBtn.addEventListener('click', async function() {
         const checkedCheckboxes = extractedUrlsList.querySelectorAll('input[type="checkbox"]:checked');
@@ -512,28 +550,45 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Visa laddningsindikator
-        importUrlsBtn.textContent = 'Importerar...';
+        importUrlsBtn.textContent = `Importerar 0/${selectedUrls.length}...`;
         importUrlsBtn.disabled = true;
 
         let successCount = 0;
         let errorCount = 0;
 
-        for (const url of selectedUrls) {
+        for (let i = 0; i < selectedUrls.length; i++) {
+            const url = selectedUrls[i];
             try {
-                // Skapa ett grundläggande verktyg från URL:en
-                // I framtiden kan detta utökas med webbskrapning
+                // Update progress
+                importUrlsBtn.textContent = `Importerar ${i + 1}/${selectedUrls.length}...`;
+
                 const urlObj = new URL(url);
-                const toolName = urlObj.hostname.replace('www.', '');
+                let toolName = urlObj.hostname.replace('www.', '');
+                let description = `AI-verktyg från ${urlObj.hostname}`;
+                let imageUrl = '';
+
+                // Försök hämta metadata från Cloudflare Worker
+                if (CONFIG.ENABLE_METADATA_SCRAPING) {
+                    const metadata = await fetchMetadata(url);
+                    if (metadata) {
+                        toolName = metadata.title || toolName;
+                        description = metadata.description || description;
+                        imageUrl = metadata.image || metadata.icon || '';
+                    }
+                }
 
                 const tool = AIToolModel.create({
                     name: toolName,
                     url: url,
-                    description: `AI-verktyg från ${urlObj.hostname}`,
+                    description: description,
                     category: 'Annat',
                     price: 'freemium',
                     rating: 3,
                     tags: ['importerad'],
-                    notes: 'Importerad via massimport. Uppdatera information manuellt.'
+                    notes: CONFIG.ENABLE_METADATA_SCRAPING ?
+                        'Importerad via massimport med automatisk metadata-extrahering.' :
+                        'Importerad via massimport. Uppdatera information manuellt.',
+                    imageUrl: imageUrl
                 });
 
                 AIToolModel.add(tool);
@@ -554,7 +609,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Visa resultat
         if (successCount > 0) {
-            showNotification(`${successCount} verktyg importerade! ${errorCount > 0 ? `(${errorCount} misslyckades)` : ''}`, 'success');
+            const message = CONFIG.ENABLE_METADATA_SCRAPING ?
+                `${successCount} verktyg importerade med metadata! ${errorCount > 0 ? `(${errorCount} misslyckades)` : ''}` :
+                `${successCount} verktyg importerade! ${errorCount > 0 ? `(${errorCount} misslyckades)` : ''}\n\nTips: Aktivera Cloudflare Worker för automatisk metadata-extrahering.`;
+            showNotification(message, 'success');
         } else {
             showNotification('Ingen import lyckades.', 'error');
         }
