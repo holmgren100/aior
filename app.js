@@ -189,7 +189,14 @@ const CONFIG = {
     // Set this to your deployed worker URL, or leave empty to disable
     CLOUDFLARE_WORKER_URL: '', // e.g., 'https://metadata-scraper.yourname.workers.dev'
     // Enable metadata scraping (set to false if worker not deployed)
-    ENABLE_METADATA_SCRAPING: false
+    ENABLE_METADATA_SCRAPING: false,
+
+    // OCR.space API key for image text extraction
+    // Get free key at: https://ocr.space/ocrapi
+    // Free tier: 25,000 requests/month
+    OCR_API_KEY: '', // e.g., 'K87654321088957'
+    // Enable OCR (set to false if no API key)
+    ENABLE_OCR: false
 };
 
 // Main Application Code
@@ -217,6 +224,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalCloseBtn = bulkImportModal.querySelector('.modal-close');
     const modalCancelBtn = bulkImportModal.querySelector('.modal-cancel-btn');
     const bulkTextInput = document.getElementById('bulk-text-input');
+    const bulkImageInput = document.getElementById('bulk-image-input');
     const extractUrlsBtn = document.getElementById('extract-urls-btn');
     const importUrlsBtn = document.getElementById('import-urls-btn');
     const extractedUrlsSection = document.getElementById('extracted-urls-section');
@@ -436,12 +444,47 @@ document.addEventListener('DOMContentLoaded', function() {
         extractUrlsBtn.style.display = 'inline-flex';
     }
 
+    // Hantera bilduppladdning för OCR
+    bulkImageInput.addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!CONFIG.ENABLE_OCR || !CONFIG.OCR_API_KEY) {
+            showNotification('OCR är inte aktiverat. Lägg till API-nyckel i CONFIG för att aktivera bildextrahering.', 'warning');
+            bulkImageInput.value = '';
+            return;
+        }
+
+        // Visa laddningsmeddelande
+        extractUrlsBtn.textContent = 'Extraherar text från bild...';
+        extractUrlsBtn.disabled = true;
+
+        try {
+            const extractedText = await performOCR(file);
+
+            if (extractedText) {
+                // Sätt extraherad text i textfältet
+                bulkTextInput.value = extractedText;
+                showNotification('Text extraherad från bild! Klicka på "Extrahera URL:er" för att fortsätta.', 'success');
+            } else {
+                showNotification('Ingen text kunde extraheras från bilden.', 'warning');
+            }
+        } catch (error) {
+            console.error('OCR error:', error);
+            showNotification('Fel vid textextrahering: ' + error.message, 'error');
+        } finally {
+            extractUrlsBtn.textContent = 'Extrahera URL:er';
+            extractUrlsBtn.disabled = false;
+            bulkImageInput.value = '';
+        }
+    });
+
     // Extrahera URL:er från text
     extractUrlsBtn.addEventListener('click', function() {
         const text = bulkTextInput.value.trim();
 
         if (!text) {
-            showNotification('Vänligen klistra in text med URL:er.', 'warning');
+            showNotification('Vänligen klistra in text med URL:er eller ladda upp en bild.', 'warning');
             return;
         }
 
@@ -536,6 +579,57 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Error fetching metadata:', error);
             return null;
+        }
+    }
+
+    // Utför OCR på en bild med OCR.space API
+    async function performOCR(imageFile) {
+        if (!CONFIG.ENABLE_OCR || !CONFIG.OCR_API_KEY) {
+            return null;
+        }
+
+        try {
+            // Skapa FormData för bilduppladdning
+            const formData = new FormData();
+            formData.append('file', imageFile);
+            formData.append('apikey', CONFIG.OCR_API_KEY);
+            formData.append('language', 'eng');
+            formData.append('isOverlayRequired', 'false');
+            formData.append('detectOrientation', 'true');
+            formData.append('scale', 'true');
+            formData.append('OCREngine', '2'); // Engine 2 is more accurate
+
+            const response = await fetch('https://api.ocr.space/parse/image', {
+                method: 'POST',
+                body: formData,
+                signal: AbortSignal.timeout(30000) // 30 second timeout for OCR
+            });
+
+            if (!response.ok) {
+                throw new Error(`OCR API returned ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            if (result.IsErroredOnProcessing) {
+                throw new Error(result.ErrorMessage || 'OCR processing failed');
+            }
+
+            if (!result.ParsedResults || result.ParsedResults.length === 0) {
+                return '';
+            }
+
+            // Extrahera text från alla sidor/resultat
+            const extractedText = result.ParsedResults
+                .map(page => page.ParsedText)
+                .join('\n')
+                .trim();
+
+            return extractedText;
+
+        } catch (error) {
+            console.error('OCR error:', error);
+            throw new Error('Kunde inte extrahera text från bild: ' + error.message);
         }
     }
 
