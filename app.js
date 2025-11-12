@@ -54,55 +54,63 @@ class AIToolModel {
     // Storage Operations
     static storageKey = 'ai-tools-data';
 
-    static getAll() {
+    // Storage abstraction - supports both localStorage and Firebase
+    static async getAll() {
+        if (window.FirebaseStorage && window.FirebaseStorage.isEnabled()) {
+            return await window.FirebaseStorage.getAll();
+        }
         const data = localStorage.getItem(this.storageKey);
         return data ? JSON.parse(data) : [];
     }
 
-    static save(tools) {
-        localStorage.setItem(this.storageKey, JSON.stringify(tools));
+    static async save(tools) {
+        if (window.FirebaseStorage && window.FirebaseStorage.isEnabled()) {
+            await window.FirebaseStorage.save(tools);
+        } else {
+            localStorage.setItem(this.storageKey, JSON.stringify(tools));
+        }
     }
 
-    static add(tool) {
-        const tools = this.getAll();
+    static async add(tool) {
+        const tools = await this.getAll();
         tools.push(tool);
-        this.save(tools);
+        await this.save(tools);
         return tool;
     }
 
-    static update(id, updates) {
-        const tools = this.getAll();
+    static async update(id, updates) {
+        const tools = await this.getAll();
         const index = tools.findIndex(t => t.id === id);
-        
+
         if (index === -1) {
             throw new Error(`Tool with ID ${id} not found`);
         }
-        
+
         tools[index] = { ...tools[index], ...updates };
-        this.save(tools);
+        await this.save(tools);
         return tools[index];
     }
 
-    static delete(id) {
-        const tools = this.getAll();
+    static async delete(id) {
+        const tools = await this.getAll();
         const newTools = tools.filter(t => t.id !== id);
-        
+
         if (newTools.length === tools.length) {
             throw new Error(`Tool with ID ${id} not found`);
         }
-        
-        this.save(newTools);
+
+        await this.save(newTools);
         return true;
     }
 
-    static find(id) {
-        const tools = this.getAll();
+    static async find(id) {
+        const tools = await this.getAll();
         return tools.find(t => t.id === id);
     }
 
     // Förbättrad filterfunktion med Fuse.js för fuzzy-sökning
-    static filter(criteria) {
-        const tools = this.getAll();
+    static async filter(criteria) {
+        const tools = await this.getAll();
         let filteredTools = [...tools];
         
         // Använd fuzzy-sökning om Fuse.js finns tillgängligt och searchText är specificerat
@@ -183,10 +191,164 @@ class AIToolModel {
     }
 }
 
+// Configuration
+const CONFIG = {
+    // Cloudflare Worker URL for metadata scraping
+    // Set this to your deployed worker URL, or leave empty to disable
+    CLOUDFLARE_WORKER_URL: '', // e.g., 'https://metadata-scraper.yourname.workers.dev'
+    // Enable metadata scraping (set to false if worker not deployed)
+    ENABLE_METADATA_SCRAPING: false,
+
+    // OCR.space API key for image text extraction
+    // Get free key at: https://ocr.space/ocrapi
+    // Free tier: 25,000 requests/month
+    OCR_API_KEY: '', // e.g., 'K87654321088957'
+    // Enable OCR (set to false if no API key)
+    ENABLE_OCR: false,
+
+    // Enable automated tagging and categorization
+    ENABLE_AUTO_TAGGING: true
+};
+
+// Text Analysis Engine for Auto-Tagging
+const TextAnalyzer = {
+    // Category keywords mapping
+    categoryKeywords: {
+        'Marknadsföring': ['marketing', 'seo', 'ads', 'campaign', 'social media', 'email marketing', 'analytics', 'conversion', 'marknadsföring', 'annonsering'],
+        'Assistent': ['assistant', 'chatbot', 'chat', 'conversation', 'helper', 'support', 'assistent', 'hjälp', 'gpt', 'claude'],
+        'Automatisering': ['automation', 'workflow', 'zapier', 'integration', 'automate', 'automatisering', 'arbetsflöde'],
+        'Bildgenerering': ['image', 'picture', 'photo', 'visual', 'art', 'design', 'midjourney', 'dall-e', 'stable diffusion', 'bild', 'foto'],
+        'Textgenerering': ['text', 'writing', 'content', 'copy', 'writer', 'text', 'skriva', 'innehåll'],
+        'Videogenerering': ['video', 'animation', 'film', 'movie', 'video'],
+        'Kodning': ['code', 'programming', 'developer', 'github', 'copilot', 'coding', 'kod', 'programmering'],
+        'Analys': ['analytics', 'data', 'analysis', 'insights', 'metrics', 'reporting', 'analys', 'data']
+    },
+
+    // Pricing model keywords
+    pricingKeywords: {
+        'free': ['free', 'gratis', 'no cost', 'open source', 'opensource', '0$', '$0'],
+        'freemium': ['freemium', 'free trial', 'basic free', 'free tier', 'limited free'],
+        'paid': ['paid', 'purchase', 'one-time', 'buy', 'betald', 'köp'],
+        'subscription': ['subscription', 'monthly', 'yearly', 'per month', '/month', 'prenumeration', 'månad']
+    },
+
+    // Common AI tool tags
+    commonTags: {
+        'chatbot': ['chat', 'chatbot', 'conversation', 'messaging'],
+        'generativ': ['generate', 'generation', 'generative', 'create'],
+        'ai': ['ai', 'artificial intelligence', 'machine learning', 'ml', 'deep learning'],
+        'produktivitet': ['productivity', 'efficient', 'workflow', 'produktivitet'],
+        'kreativitet': ['creative', 'art', 'design', 'kreativitet', 'kreativ'],
+        'business': ['business', 'enterprise', 'commercial', 'företag'],
+        'personlig': ['personal', 'individual', 'personlig'],
+        'api': ['api', 'integration', 'developer'],
+        'no-code': ['no-code', 'no code', 'low-code', 'drag-and-drop']
+    },
+
+    /**
+     * Analyze text and suggest category
+     */
+    suggestCategory(text) {
+        if (!text) return 'Annat';
+
+        const lowerText = text.toLowerCase();
+        const scores = {};
+
+        // Score each category based on keyword matches
+        for (const [category, keywords] of Object.entries(this.categoryKeywords)) {
+            scores[category] = 0;
+            for (const keyword of keywords) {
+                if (lowerText.includes(keyword.toLowerCase())) {
+                    scores[category] += 1;
+                }
+            }
+        }
+
+        // Find category with highest score
+        let maxScore = 0;
+        let bestCategory = 'Annat';
+
+        for (const [category, score] of Object.entries(scores)) {
+            if (score > maxScore) {
+                maxScore = score;
+                bestCategory = category;
+            }
+        }
+
+        return maxScore > 0 ? bestCategory : 'Annat';
+    },
+
+    /**
+     * Analyze text and suggest pricing model
+     */
+    suggestPricing(text) {
+        if (!text) return 'freemium';
+
+        const lowerText = text.toLowerCase();
+
+        // Check for pricing keywords
+        for (const [pricing, keywords] of Object.entries(this.pricingKeywords)) {
+            for (const keyword of keywords) {
+                if (lowerText.includes(keyword.toLowerCase())) {
+                    return pricing;
+                }
+            }
+        }
+
+        return 'freemium'; // Default
+    },
+
+    /**
+     * Extract and suggest tags from text
+     */
+    suggestTags(text) {
+        if (!text) return [];
+
+        const lowerText = text.toLowerCase();
+        const suggestedTags = [];
+
+        // Check for common tag keywords
+        for (const [tag, keywords] of Object.entries(this.commonTags)) {
+            for (const keyword of keywords) {
+                if (lowerText.includes(keyword.toLowerCase())) {
+                    suggestedTags.push(tag);
+                    break; // Only add tag once
+                }
+            }
+        }
+
+        return suggestedTags;
+    },
+
+    /**
+     * Analyze tool data and return suggestions
+     */
+    analyze(toolData) {
+        const combinedText = `${toolData.name || ''} ${toolData.description || ''} ${toolData.notes || ''}`.toLowerCase();
+
+        return {
+            category: this.suggestCategory(combinedText),
+            price: this.suggestPricing(combinedText),
+            tags: this.suggestTags(combinedText),
+            confidence: this.calculateConfidence(combinedText)
+        };
+    },
+
+    /**
+     * Calculate confidence score for suggestions
+     */
+    calculateConfidence(text) {
+        const wordCount = text.split(/\s+/).length;
+        if (wordCount < 5) return 'low';
+        if (wordCount < 15) return 'medium';
+        return 'high';
+    }
+};
+
 // Main Application Code
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Initial data load
-    let toolsData = AIToolModel.getAll();
+    let toolsData = await AIToolModel.getAll();
 
     // DOM-element
     const toolForm = document.getElementById('tool-form');
@@ -208,6 +370,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalCloseBtn = bulkImportModal.querySelector('.modal-close');
     const modalCancelBtn = bulkImportModal.querySelector('.modal-cancel-btn');
     const bulkTextInput = document.getElementById('bulk-text-input');
+    const bulkImageInput = document.getElementById('bulk-image-input');
     const extractUrlsBtn = document.getElementById('extract-urls-btn');
     const importUrlsBtn = document.getElementById('import-urls-btn');
     const extractedUrlsSection = document.getElementById('extracted-urls-section');
@@ -226,7 +389,51 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Visa alla verktyg när sidan laddas
     displayTools();
-    
+
+    // AI-förslag knapp
+    const autoSuggestBtn = document.getElementById('auto-suggest-btn');
+    if (autoSuggestBtn && CONFIG.ENABLE_AUTO_TAGGING) {
+        autoSuggestBtn.addEventListener('click', function() {
+            const name = document.getElementById('tool-name').value;
+            const description = document.getElementById('tool-description').value;
+            const notes = document.getElementById('tool-notes').value;
+
+            if (!name && !description) {
+                showNotification('Fyll i namn och/eller beskrivning först för att få AI-förslag.', 'warning');
+                return;
+            }
+
+            // Analyze the text
+            const analysis = TextAnalyzer.analyze({ name, description, notes });
+
+            // Apply suggestions
+            document.getElementById('tool-category').value = analysis.category;
+            document.getElementById('tool-price').value = analysis.price;
+
+            // Add suggested tags to checkboxes
+            const predefinedTags = ['marknadsföring', 'assistent', 'automatisering', 'text', 'bild', 'video', 'kod', 'analys'];
+            analysis.tags.forEach(tag => {
+                const tagLower = tag.toLowerCase();
+                if (predefinedTags.includes(tagLower)) {
+                    const checkbox = document.querySelector(`.checkbox-group input[value="${tagLower}"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                }
+            });
+
+            // Add other tags to custom tags field
+            const customTags = analysis.tags.filter(tag => !predefinedTags.includes(tag.toLowerCase()));
+            const existingCustomTags = document.getElementById('custom-tags').value;
+            const allCustomTags = existingCustomTags ?
+                [...existingCustomTags.split(',').map(t => t.trim()), ...customTags] :
+                customTags;
+            document.getElementById('custom-tags').value = [...new Set(allCustomTags)].join(', ');
+
+            showNotification(`AI-förslag tillämpade! Kategori: ${analysis.category}, Pris: ${analysis.price}, Taggar: ${analysis.tags.length}`, 'success');
+        });
+    }
+
     // Hantera formulärinskickning
     toolForm.addEventListener('submit', function(e) {
         e.preventDefault();
@@ -427,12 +634,47 @@ document.addEventListener('DOMContentLoaded', function() {
         extractUrlsBtn.style.display = 'inline-flex';
     }
 
+    // Hantera bilduppladdning för OCR
+    bulkImageInput.addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!CONFIG.ENABLE_OCR || !CONFIG.OCR_API_KEY) {
+            showNotification('OCR är inte aktiverat. Lägg till API-nyckel i CONFIG för att aktivera bildextrahering.', 'warning');
+            bulkImageInput.value = '';
+            return;
+        }
+
+        // Visa laddningsmeddelande
+        extractUrlsBtn.textContent = 'Extraherar text från bild...';
+        extractUrlsBtn.disabled = true;
+
+        try {
+            const extractedText = await performOCR(file);
+
+            if (extractedText) {
+                // Sätt extraherad text i textfältet
+                bulkTextInput.value = extractedText;
+                showNotification('Text extraherad från bild! Klicka på "Extrahera URL:er" för att fortsätta.', 'success');
+            } else {
+                showNotification('Ingen text kunde extraheras från bilden.', 'warning');
+            }
+        } catch (error) {
+            console.error('OCR error:', error);
+            showNotification('Fel vid textextrahering: ' + error.message, 'error');
+        } finally {
+            extractUrlsBtn.textContent = 'Extrahera URL:er';
+            extractUrlsBtn.disabled = false;
+            bulkImageInput.value = '';
+        }
+    });
+
     // Extrahera URL:er från text
     extractUrlsBtn.addEventListener('click', function() {
         const text = bulkTextInput.value.trim();
 
         if (!text) {
-            showNotification('Vänligen klistra in text med URL:er.', 'warning');
+            showNotification('Vänligen klistra in text med URL:er eller ladda upp en bild.', 'warning');
             return;
         }
 
@@ -501,6 +743,86 @@ document.addEventListener('DOMContentLoaded', function() {
         importUrlsBtn.style.display = 'inline-flex';
     }
 
+    // Hämta metadata från Cloudflare Worker
+    async function fetchMetadata(url) {
+        if (!CONFIG.ENABLE_METADATA_SCRAPING || !CONFIG.CLOUDFLARE_WORKER_URL) {
+            return null;
+        }
+
+        try {
+            const response = await fetch(CONFIG.CLOUDFLARE_WORKER_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url }),
+                signal: AbortSignal.timeout(15000) // 15 second timeout
+            });
+
+            if (!response.ok) {
+                console.error('Metadata fetch failed:', response.status);
+                return null;
+            }
+
+            const metadata = await response.json();
+            return metadata;
+        } catch (error) {
+            console.error('Error fetching metadata:', error);
+            return null;
+        }
+    }
+
+    // Utför OCR på en bild med OCR.space API
+    async function performOCR(imageFile) {
+        if (!CONFIG.ENABLE_OCR || !CONFIG.OCR_API_KEY) {
+            return null;
+        }
+
+        try {
+            // Skapa FormData för bilduppladdning
+            const formData = new FormData();
+            formData.append('file', imageFile);
+            formData.append('apikey', CONFIG.OCR_API_KEY);
+            formData.append('language', 'eng');
+            formData.append('isOverlayRequired', 'false');
+            formData.append('detectOrientation', 'true');
+            formData.append('scale', 'true');
+            formData.append('OCREngine', '2'); // Engine 2 is more accurate
+
+            const response = await fetch('https://api.ocr.space/parse/image', {
+                method: 'POST',
+                body: formData,
+                signal: AbortSignal.timeout(30000) // 30 second timeout for OCR
+            });
+
+            if (!response.ok) {
+                throw new Error(`OCR API returned ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            if (result.IsErroredOnProcessing) {
+                throw new Error(result.ErrorMessage || 'OCR processing failed');
+            }
+
+            if (!result.ParsedResults || result.ParsedResults.length === 0) {
+                return '';
+            }
+
+            // Extrahera text från alla sidor/resultat
+            const extractedText = result.ParsedResults
+                .map(page => page.ParsedText)
+                .join('\n')
+                .trim();
+
+            return extractedText;
+
+        } catch (error) {
+            console.error('OCR error:', error);
+            throw new Error('Kunde inte extrahera text från bild: ' + error.message);
+        }
+    }
+
     // Importera valda URL:er
     importUrlsBtn.addEventListener('click', async function() {
         const checkedCheckboxes = extractedUrlsList.querySelectorAll('input[type="checkbox"]:checked');
@@ -512,28 +834,62 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Visa laddningsindikator
-        importUrlsBtn.textContent = 'Importerar...';
+        importUrlsBtn.textContent = `Importerar 0/${selectedUrls.length}...`;
         importUrlsBtn.disabled = true;
 
         let successCount = 0;
         let errorCount = 0;
 
-        for (const url of selectedUrls) {
+        for (let i = 0; i < selectedUrls.length; i++) {
+            const url = selectedUrls[i];
             try {
-                // Skapa ett grundläggande verktyg från URL:en
-                // I framtiden kan detta utökas med webbskrapning
+                // Update progress
+                importUrlsBtn.textContent = `Importerar ${i + 1}/${selectedUrls.length}...`;
+
                 const urlObj = new URL(url);
-                const toolName = urlObj.hostname.replace('www.', '');
+                let toolName = urlObj.hostname.replace('www.', '');
+                let description = `AI-verktyg från ${urlObj.hostname}`;
+                let imageUrl = '';
+
+                // Försök hämta metadata från Cloudflare Worker
+                if (CONFIG.ENABLE_METADATA_SCRAPING) {
+                    const metadata = await fetchMetadata(url);
+                    if (metadata) {
+                        toolName = metadata.title || toolName;
+                        description = metadata.description || description;
+                        imageUrl = metadata.image || metadata.icon || '';
+                    }
+                }
+
+                // Use AI text analysis to suggest category, pricing, and tags
+                let suggestedCategory = 'Annat';
+                let suggestedPrice = 'freemium';
+                let suggestedTags = ['importerad'];
+
+                if (CONFIG.ENABLE_AUTO_TAGGING) {
+                    const analysis = TextAnalyzer.analyze({
+                        name: toolName,
+                        description: description,
+                        notes: ''
+                    });
+
+                    suggestedCategory = analysis.category;
+                    suggestedPrice = analysis.price;
+                    suggestedTags = ['importerad', ...analysis.tags];
+                }
 
                 const tool = AIToolModel.create({
                     name: toolName,
                     url: url,
-                    description: `AI-verktyg från ${urlObj.hostname}`,
-                    category: 'Annat',
-                    price: 'freemium',
+                    description: description,
+                    category: suggestedCategory,
+                    price: suggestedPrice,
                     rating: 3,
-                    tags: ['importerad'],
-                    notes: 'Importerad via massimport. Uppdatera information manuellt.'
+                    tags: suggestedTags,
+                    notes: CONFIG.ENABLE_AUTO_TAGGING ?
+                        'Importerad via massimport med automatisk kategorisering och taggning.' :
+                        'Importerad via massimport. Uppdatera information manuellt.',
+                    imageUrl: imageUrl
                 });
 
                 AIToolModel.add(tool);
@@ -554,7 +910,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Visa resultat
         if (successCount > 0) {
-            showNotification(`${successCount} verktyg importerade! ${errorCount > 0 ? `(${errorCount} misslyckades)` : ''}`, 'success');
+            const message = CONFIG.ENABLE_METADATA_SCRAPING ?
+                `${successCount} verktyg importerade med metadata! ${errorCount > 0 ? `(${errorCount} misslyckades)` : ''}` :
+                `${successCount} verktyg importerade! ${errorCount > 0 ? `(${errorCount} misslyckades)` : ''}\n\nTips: Aktivera Cloudflare Worker för automatisk metadata-extrahering.`;
+            showNotification(message, 'success');
         } else {
             showNotification('Ingen import lyckades.', 'error');
         }
