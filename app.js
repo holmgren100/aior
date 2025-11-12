@@ -187,7 +187,7 @@ class AIToolModel {
 document.addEventListener('DOMContentLoaded', function() {
     // Initial data load
     let toolsData = AIToolModel.getAll();
-    
+
     // DOM-element
     const toolForm = document.getElementById('tool-form');
     const toolsList = document.getElementById('tools-list');
@@ -201,13 +201,28 @@ document.addEventListener('DOMContentLoaded', function() {
     const sortDirectionSelect = document.getElementById('sort-direction');
     const exportDataBtn = document.getElementById('export-data');
     const importDataBtn = document.getElementById('import-data');
-    
+
+    // Bulk import elements
+    const bulkImportBtn = document.getElementById('bulk-import-btn');
+    const bulkImportModal = document.getElementById('bulk-import-modal');
+    const modalCloseBtn = bulkImportModal.querySelector('.modal-close');
+    const modalCancelBtn = bulkImportModal.querySelector('.modal-cancel-btn');
+    const bulkTextInput = document.getElementById('bulk-text-input');
+    const extractUrlsBtn = document.getElementById('extract-urls-btn');
+    const importUrlsBtn = document.getElementById('import-urls-btn');
+    const extractedUrlsSection = document.getElementById('extracted-urls-section');
+    const extractedUrlsList = document.getElementById('extracted-urls-list');
+    const urlCount = document.getElementById('url-count');
+
     // Paginering
     const ITEMS_PER_PAGE = 10;
     let currentPage = 1;
-    
+
     // Aktiva taggfilter
     let activeTagFilters = [];
+
+    // Edit mode tracking
+    let editingToolId = null;
     
     // Visa alla verktyg när sidan laddas
     displayTools();
@@ -215,22 +230,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Hantera formulärinskickning
     toolForm.addEventListener('submit', function(e) {
         e.preventDefault();
-        
+
         // Hämta taggar från checkboxes
         const tagCheckboxes = document.querySelectorAll('.checkbox-group input:checked');
         const tags = Array.from(tagCheckboxes).map(cb => cb.value);
-        
+
         // Hämta egna taggar och lägg till dem
         const customTags = document.getElementById('custom-tags').value
             .split(',')
             .map(tag => tag.trim())
             .filter(tag => tag !== '');
-        
+
         tags.push(...customTags);
-        
+
         try {
-            // Skapa ett verktyg med vår datamodell
-            const tool = AIToolModel.create({
+            const toolData = {
                 name: document.getElementById('tool-name').value,
                 url: document.getElementById('tool-url').value,
                 description: document.getElementById('tool-description').value,
@@ -240,28 +254,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 rating: parseInt(document.getElementById('tool-rating').value),
                 tags: tags,
                 notes: document.getElementById('tool-notes').value
-            });
-            
-            // Lägg till verktyget med vår datamodell
-            AIToolModel.add(tool);
-            
+            };
+
+            if (editingToolId) {
+                // Uppdatera befintligt verktyg
+                AIToolModel.update(editingToolId, toolData);
+                showNotification(`${toolData.name} har uppdaterats!`, 'success');
+                exitEditMode();
+            } else {
+                // Skapa nytt verktyg
+                const tool = AIToolModel.create(toolData);
+                AIToolModel.add(tool);
+                showNotification(`${toolData.name} har lagts till!`, 'success');
+            }
+
             // Uppdatera den lokala listan
             toolsData = AIToolModel.getAll();
-            
+
             // Uppdatera visningen
             displayTools();
-            
+
             // Återställ formuläret
             toolForm.reset();
-            
+
             // Rensa alla checkboxes
             document.querySelectorAll('.checkbox-group input').forEach(cb => {
                 cb.checked = false;
             });
-
-            // Notifiera användaren om att verktyget har lagts till
-            const toolName = tool.name;
-            showNotification(`${toolName} har lagts till!`, 'success');
         } catch (error) {
             showNotification('Fel vid skapande av verktyg: ' + error.message, 'error');
         }
@@ -378,6 +397,170 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             showNotification('Vänligen välj en fil att importera.', 'info');
         }
+    });
+
+    // Bulk Import Modal funktionalitet
+    bulkImportBtn.addEventListener('click', function() {
+        bulkImportModal.classList.add('active');
+        bulkImportModal.setAttribute('aria-hidden', 'false');
+        bulkTextInput.focus();
+    });
+
+    modalCloseBtn.addEventListener('click', closeBulkImportModal);
+    modalCancelBtn.addEventListener('click', closeBulkImportModal);
+
+    // Stäng modal vid klick utanför
+    bulkImportModal.addEventListener('click', function(e) {
+        if (e.target === bulkImportModal) {
+            closeBulkImportModal();
+        }
+    });
+
+    function closeBulkImportModal() {
+        bulkImportModal.classList.remove('active');
+        bulkImportModal.setAttribute('aria-hidden', 'true');
+        // Återställ modal
+        bulkTextInput.value = '';
+        extractedUrlsSection.style.display = 'none';
+        extractedUrlsList.innerHTML = '';
+        importUrlsBtn.style.display = 'none';
+        extractUrlsBtn.style.display = 'inline-flex';
+    }
+
+    // Extrahera URL:er från text
+    extractUrlsBtn.addEventListener('click', function() {
+        const text = bulkTextInput.value.trim();
+
+        if (!text) {
+            showNotification('Vänligen klistra in text med URL:er.', 'warning');
+            return;
+        }
+
+        const urls = extractURLsFromText(text);
+
+        if (urls.length === 0) {
+            showNotification('Inga URL:er hittades i texten.', 'warning');
+            return;
+        }
+
+        displayExtractedURLs(urls);
+        showNotification(`${urls.length} URL:er extraherade!`, 'success');
+    });
+
+    // Funktion för att extrahera URL:er från text
+    function extractURLsFromText(text) {
+        // Regex för att hitta URL:er (inkluderar http, https, och www)
+        const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)/gi;
+        const matches = text.match(urlRegex) || [];
+
+        // Rensa och deduplicera URL:er
+        const urls = matches.map(url => {
+            // Lägg till https:// om URL börjar med www
+            if (url.startsWith('www.')) {
+                url = 'https://' + url;
+            }
+            // Ta bort avslutande punkter, komma etc
+            url = url.replace(/[.,;:!?)]+$/, '');
+            return url;
+        });
+
+        // Deduplicera och sortera
+        return [...new Set(urls)].sort();
+    }
+
+    // Visa extraherade URL:er
+    function displayExtractedURLs(urls) {
+        extractedUrlsList.innerHTML = '';
+        urlCount.textContent = urls.length;
+
+        urls.forEach((url, index) => {
+            const urlItem = document.createElement('div');
+            urlItem.className = 'url-item';
+
+            // Extrahera domän för visning
+            let domain = '';
+            try {
+                domain = new URL(url).hostname;
+            } catch (e) {
+                domain = url;
+            }
+
+            urlItem.innerHTML = `
+                <input type="checkbox" id="url-${index}" value="${url}" checked aria-label="Välj ${url}">
+                <div class="url-item-content">
+                    <a href="${url}" target="_blank" class="url-item-link" rel="noopener noreferrer">${url}</a>
+                    <div class="url-item-domain">${domain}</div>
+                </div>
+            `;
+
+            extractedUrlsList.appendChild(urlItem);
+        });
+
+        extractedUrlsSection.style.display = 'block';
+        extractUrlsBtn.style.display = 'none';
+        importUrlsBtn.style.display = 'inline-flex';
+    }
+
+    // Importera valda URL:er
+    importUrlsBtn.addEventListener('click', async function() {
+        const checkedCheckboxes = extractedUrlsList.querySelectorAll('input[type="checkbox"]:checked');
+        const selectedUrls = Array.from(checkedCheckboxes).map(cb => cb.value);
+
+        if (selectedUrls.length === 0) {
+            showNotification('Välj minst en URL att importera.', 'warning');
+            return;
+        }
+
+        // Visa laddningsindikator
+        importUrlsBtn.textContent = 'Importerar...';
+        importUrlsBtn.disabled = true;
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const url of selectedUrls) {
+            try {
+                // Skapa ett grundläggande verktyg från URL:en
+                // I framtiden kan detta utökas med webbskrapning
+                const urlObj = new URL(url);
+                const toolName = urlObj.hostname.replace('www.', '');
+
+                const tool = AIToolModel.create({
+                    name: toolName,
+                    url: url,
+                    description: `AI-verktyg från ${urlObj.hostname}`,
+                    category: 'Annat',
+                    price: 'freemium',
+                    rating: 3,
+                    tags: ['importerad'],
+                    notes: 'Importerad via massimport. Uppdatera information manuellt.'
+                });
+
+                AIToolModel.add(tool);
+                successCount++;
+            } catch (error) {
+                console.error('Fel vid import av URL:', url, error);
+                errorCount++;
+            }
+        }
+
+        // Uppdatera lokal data och visning
+        toolsData = AIToolModel.getAll();
+        displayTools();
+
+        // Återställ knapp
+        importUrlsBtn.textContent = 'Importera valda URL:er';
+        importUrlsBtn.disabled = false;
+
+        // Visa resultat
+        if (successCount > 0) {
+            showNotification(`${successCount} verktyg importerade! ${errorCount > 0 ? `(${errorCount} misslyckades)` : ''}`, 'success');
+        } else {
+            showNotification('Ingen import lyckades.', 'error');
+        }
+
+        // Stäng modal
+        closeBulkImportModal();
     });
 
     // Funktion för att visa notifikationer
@@ -689,11 +872,103 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Funktion för att redigera ett verktyg
     function editTool(id) {
-        // För närvarande bara en platshållare
-        showNotification('Redigering kommer i nästa version!', 'info');
-        
-        // När implementerad, ladda verktyg med:
-        // const tool = AIToolModel.find(id);
+        const tool = AIToolModel.find(id);
+
+        if (!tool) {
+            showNotification('Verktyget kunde inte hittas!', 'error');
+            return;
+        }
+
+        // Sätt redigeringsläge
+        editingToolId = id;
+
+        // Uppdatera formulärrubriken
+        const formHeading = document.getElementById('form-heading');
+        formHeading.textContent = 'Redigera AI-verktyg';
+
+        // Fyll i formuläret med verktygsdata
+        document.getElementById('tool-name').value = tool.name || '';
+        document.getElementById('tool-url').value = tool.url || '';
+        document.getElementById('tool-description').value = tool.description || '';
+        document.getElementById('tool-category').value = tool.category || '';
+        document.getElementById('tool-price').value = tool.price || '';
+        document.getElementById('tool-cost').value = tool.cost || '';
+        document.getElementById('tool-rating').value = tool.rating || 5;
+        document.getElementById('tool-notes').value = tool.notes || '';
+
+        // Hantera taggar
+        if (tool.tags && Array.isArray(tool.tags)) {
+            // Rensa alla checkboxes först
+            document.querySelectorAll('.checkbox-group input').forEach(cb => {
+                cb.checked = false;
+            });
+
+            // Separera fördefinierade taggar och egna taggar
+            const predefinedTags = ['marknadsföring', 'assistent', 'automatisering', 'text', 'bild', 'video', 'kod', 'analys'];
+            const customTagsList = [];
+
+            tool.tags.forEach(tag => {
+                const tagLower = tag.toLowerCase();
+                if (predefinedTags.includes(tagLower)) {
+                    // Kryssa i checkboxen
+                    const checkbox = document.querySelector(`.checkbox-group input[value="${tagLower}"]`);
+                    if (checkbox) {
+                        checkbox.checked = true;
+                    }
+                } else {
+                    // Lägg till i egna taggar
+                    customTagsList.push(tag);
+                }
+            });
+
+            // Fyll i egna taggar
+            document.getElementById('custom-tags').value = customTagsList.join(', ');
+        }
+
+        // Lägg till avbryt-knapp om den inte redan finns
+        if (!document.getElementById('cancel-edit-btn')) {
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.id = 'cancel-edit-btn';
+            cancelBtn.textContent = 'Avbryt';
+            cancelBtn.style.marginLeft = '10px';
+            cancelBtn.style.backgroundColor = '#95a5a6';
+            cancelBtn.addEventListener('click', exitEditMode);
+
+            const submitBtn = toolForm.querySelector('button[type="submit"]');
+            submitBtn.textContent = 'Uppdatera verktyg';
+            submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
+        }
+
+        // Scrolla till formuläret
+        toolForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        showNotification('Redigerar verktyg: ' + tool.name, 'info');
+    }
+
+    // Funktion för att avsluta redigeringsläge
+    function exitEditMode() {
+        editingToolId = null;
+
+        // Återställ formulärrubriken
+        const formHeading = document.getElementById('form-heading');
+        formHeading.textContent = 'Lägg till AI-verktyg';
+
+        // Ta bort avbryt-knappen
+        const cancelBtn = document.getElementById('cancel-edit-btn');
+        if (cancelBtn) {
+            cancelBtn.remove();
+        }
+
+        // Återställ submit-knappen
+        const submitBtn = toolForm.querySelector('button[type="submit"]');
+        submitBtn.textContent = 'Lägg till verktyg';
+
+        // Rensa formuläret
+        toolForm.reset();
+        document.querySelectorAll('.checkbox-group input').forEach(cb => {
+            cb.checked = false;
+        });
     }
     
     // Lägg till exempelverktyg om listan är tom
