@@ -202,9 +202,9 @@ const CONFIG = {
     // OCR.space API key for image text extraction
     // Get free key at: https://ocr.space/ocrapi
     // Free tier: 25,000 requests/month
-    OCR_API_KEY: '', // e.g., 'K87654321088957'
+    OCR_API_KEY: 'K86490861088957',
     // Enable OCR (set to false if no API key)
-    ENABLE_OCR: false,
+    ENABLE_OCR: true,
 
     // Enable automated tagging and categorization
     ENABLE_AUTO_TAGGING: true
