@@ -1842,4 +1842,258 @@ document.addEventListener('DOMContentLoaded', async function() {
     addTooltips();
     enhanceFormValidation();
     enhanceToolDisplay();
+
+    // ==================== SHARE FUNCTIONALITY ====================
+
+    const shareModal = document.getElementById('share-modal');
+    const importSharedModal = document.getElementById('import-shared-modal');
+    const shareListBtn = document.getElementById('share-list-btn');
+    const importSharedBtn = document.getElementById('import-shared-btn');
+    const shareLinkInput = document.getElementById('share-link');
+    const shareCodeInput = document.getElementById('share-code');
+    const copyLinkBtn = document.getElementById('copy-link-btn');
+    const copyCodeBtn = document.getElementById('copy-code-btn');
+    const importShareLinkInput = document.getElementById('import-share-link');
+    const importShareCodeInput = document.getElementById('import-share-code');
+    const doImportSharedBtn = document.getElementById('do-import-shared-btn');
+
+    // Generate random share code
+    function generateShareCode() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed similar chars
+        let code = '';
+        for (let i = 0; i < 10; i++) {
+            if (i === 5) code += '-';
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+    }
+
+    // Compress and encode data for URL
+    function encodeToolsData(tools) {
+        const jsonStr = JSON.stringify(tools);
+        // Base64 encode
+        return btoa(unescape(encodeURIComponent(jsonStr)));
+    }
+
+    // Decode tools data from URL
+    function decodeToolsData(encoded) {
+        try {
+            const jsonStr = decodeURIComponent(escape(atob(encoded)));
+            return JSON.parse(jsonStr);
+        } catch (e) {
+            console.error('Error decoding tools data:', e);
+            return null;
+        }
+    }
+
+    // Open share modal and generate links
+    if (shareListBtn) {
+        shareListBtn.addEventListener('click', async function() {
+            const tools = await AIToolModel.getAll();
+
+            if (tools.length === 0) {
+                showNotification('Du har inga verktyg att dela!', 'warning');
+                return;
+            }
+
+            // Generate shareable link
+            const encodedData = encodeToolsData(tools);
+            const shareUrl = `${window.location.origin}${window.location.pathname}#share=${encodedData}`;
+
+            // Generate share code and store in Firebase or localStorage
+            const shareCode = generateShareCode();
+            const shareData = {
+                code: shareCode,
+                tools: tools,
+                createdAt: new Date().toISOString(),
+                toolCount: tools.length
+            };
+
+            // Store share code mapping
+            if (window.FirebaseStorage && window.FirebaseStorage.isEnabled()) {
+                // Store in Firebase for persistence
+                const shareRef = firebase.database().ref(`shared/${shareCode}`);
+                await shareRef.set(shareData);
+            } else {
+                // Store in localStorage as fallback
+                const shares = JSON.parse(localStorage.getItem('aitools_shares') || '{}');
+                shares[shareCode] = shareData;
+                localStorage.setItem('aitools_shares', JSON.stringify(shares));
+            }
+
+            // Update modal fields
+            shareLinkInput.value = shareUrl;
+            shareCodeInput.value = shareCode;
+
+            // Show modal
+            shareModal.style.display = 'flex';
+            shareModal.setAttribute('aria-hidden', 'false');
+
+            showNotification(`Delningslänk skapad! ${tools.length} verktyg redo att delas.`, 'success');
+        });
+    }
+
+    // Copy link to clipboard
+    if (copyLinkBtn) {
+        copyLinkBtn.addEventListener('click', function() {
+            shareLinkInput.select();
+            document.execCommand('copy');
+            showNotification('Länk kopierad!', 'success');
+        });
+    }
+
+    // Copy code to clipboard
+    if (copyCodeBtn) {
+        copyCodeBtn.addEventListener('click', function() {
+            shareCodeInput.select();
+            document.execCommand('copy');
+            showNotification('Kod kopierad!', 'success');
+        });
+    }
+
+    // Open import shared modal
+    if (importSharedBtn) {
+        importSharedBtn.addEventListener('click', function() {
+            importSharedModal.style.display = 'flex';
+            importSharedModal.setAttribute('aria-hidden', 'false');
+        });
+    }
+
+    // Import from shared link or code
+    if (doImportSharedBtn) {
+        doImportSharedBtn.addEventListener('click', async function() {
+            const shareLink = importShareLinkInput.value.trim();
+            const shareCode = importShareCodeInput.value.trim().toUpperCase();
+
+            let toolsToImport = null;
+
+            // Try to import from link first
+            if (shareLink) {
+                const hashMatch = shareLink.match(/#share=(.+)$/);
+                if (hashMatch) {
+                    toolsToImport = decodeToolsData(hashMatch[1]);
+                } else {
+                    showNotification('Ogiltig delningslänk!', 'error');
+                    return;
+                }
+            }
+            // Try to import from code
+            else if (shareCode) {
+                // Fetch from Firebase or localStorage
+                if (window.FirebaseStorage && window.FirebaseStorage.isEnabled()) {
+                    const shareRef = firebase.database().ref(`shared/${shareCode}`);
+                    const snapshot = await shareRef.once('value');
+                    const shareData = snapshot.val();
+                    if (shareData && shareData.tools) {
+                        toolsToImport = shareData.tools;
+                    }
+                } else {
+                    const shares = JSON.parse(localStorage.getItem('aitools_shares') || '{}');
+                    if (shares[shareCode] && shares[shareCode].tools) {
+                        toolsToImport = shares[shareCode].tools;
+                    }
+                }
+
+                if (!toolsToImport) {
+                    showNotification('Delningskod hittades inte!', 'error');
+                    return;
+                }
+            } else {
+                showNotification('Ange en länk eller kod!', 'warning');
+                return;
+            }
+
+            if (!toolsToImport || !Array.isArray(toolsToImport)) {
+                showNotification('Kunde inte läsa delad data!', 'error');
+                return;
+            }
+
+            // Import the tools
+            const importAction = confirm(`Vill du importera ${toolsToImport.length} verktyg?\n\nOK = Lägg till i din lista\nAvbryt = Ersätt hela listan`);
+
+            if (importAction) {
+                // Add to existing tools
+                const currentTools = await AIToolModel.getAll();
+                await AIToolModel.save([...currentTools, ...toolsToImport]);
+            } else {
+                // Replace all tools
+                await AIToolModel.save(toolsToImport);
+            }
+
+            // Update display
+            toolsData = await AIToolModel.getAll();
+            displayTools();
+
+            // Close modal
+            importSharedModal.style.display = 'none';
+            importSharedModal.setAttribute('aria-hidden', 'true');
+
+            // Clear inputs
+            importShareLinkInput.value = '';
+            importShareCodeInput.value = '';
+
+            showNotification(`${toolsToImport.length} verktyg importerade!`, 'success');
+        });
+    }
+
+    // Close share modal
+    const shareCloseBtn = shareModal.querySelector('.modal-close');
+    const shareCancelBtn = shareModal.querySelector('.modal-cancel-btn');
+    if (shareCloseBtn) {
+        shareCloseBtn.addEventListener('click', function() {
+            shareModal.style.display = 'none';
+            shareModal.setAttribute('aria-hidden', 'true');
+        });
+    }
+    if (shareCancelBtn) {
+        shareCancelBtn.addEventListener('click', function() {
+            shareModal.style.display = 'none';
+            shareModal.setAttribute('aria-hidden', 'true');
+        });
+    }
+
+    // Close import shared modal
+    const importSharedCloseBtn = importSharedModal.querySelector('.modal-close');
+    const importSharedCancelBtn = importSharedModal.querySelector('.modal-cancel-btn');
+    if (importSharedCloseBtn) {
+        importSharedCloseBtn.addEventListener('click', function() {
+            importSharedModal.style.display = 'none';
+            importSharedModal.setAttribute('aria-hidden', 'true');
+        });
+    }
+    if (importSharedCancelBtn) {
+        importSharedCancelBtn.addEventListener('click', function() {
+            importSharedModal.style.display = 'none';
+            importSharedModal.setAttribute('aria-hidden', 'true');
+        });
+    }
+
+    // Check if URL contains shared data on load
+    if (window.location.hash.startsWith('#share=')) {
+        const encoded = window.location.hash.substring(7);
+        const sharedTools = decodeToolsData(encoded);
+
+        if (sharedTools && Array.isArray(sharedTools) && sharedTools.length > 0) {
+            const autoImport = confirm(`Någon har delat ${sharedTools.length} AI-verktyg med dig!\n\nVill du importera dem?`);
+
+            if (autoImport) {
+                const replaceAll = confirm(`OK = Lägg till i din lista\nAvbryt = Ersätt hela listan`);
+
+                if (replaceAll) {
+                    const currentTools = await AIToolModel.getAll();
+                    await AIToolModel.save([...currentTools, ...sharedTools]);
+                } else {
+                    await AIToolModel.save(sharedTools);
+                }
+
+                toolsData = await AIToolModel.getAll();
+                displayTools();
+
+                showNotification(`${sharedTools.length} verktyg importerade från delad länk!`, 'success');
+
+                // Clear hash
+                history.replaceState(null, '', window.location.pathname);
+            }
+        }
+    }
 });
