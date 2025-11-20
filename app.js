@@ -195,9 +195,9 @@ class AIToolModel {
 const CONFIG = {
     // Cloudflare Worker URL for metadata scraping
     // Set this to your deployed worker URL, or leave empty to disable
-    CLOUDFLARE_WORKER_URL: '', // e.g., 'https://metadata-scraper.yourname.workers.dev'
+    CLOUDFLARE_WORKER_URL: 'https://metadata-scraper.holmgren100.workers.dev',
     // Enable metadata scraping (set to false if worker not deployed)
-    ENABLE_METADATA_SCRAPING: false,
+    ENABLE_METADATA_SCRAPING: true,
 
     // OCR.space API key for image text extraction
     // Get free key at: https://ocr.space/ocrapi
