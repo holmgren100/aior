@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lägg till AI-verktyg</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 350px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        h1 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .button-group button {
+            font-size: 12px;
+            padding: 8px;
+        }
+
+        .auto-detect {
+            background: #10b981;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .open-app {
+            background: #3498db;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 12px;
+            text-align: center;
+            display: none;
+        }
+
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+            display: block;
+        }
+
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+            display: block;
+        }
+
+        small {
+            font-size: 11px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Lägg till AI-verktyg</h1>
+
+        <div class="form-group">
+            <label for="tool-name">Namn:</label>
+            <input type="text" id="tool-name" placeholder="t.ex. ChatGPT">
+        </div>
+
+        <div class="form-group">
+            <label for="tool-url">URL:</label>
+            <input type="url" id="tool-url" placeholder="https://...">
+            <small>Fylls i automatiskt från nuvarande flik</small>
+        </div>
+
+        <div class="form-group">
+            <label for="tool-description">Beskrivning:</label>
+            <textarea id="tool-description" placeholder="Vad gör verktyget?"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="tool-category">Kategori:</label>
+            <select id="tool-category">
+                <option value="Assistent">Assistent</option>
+                <option value="Textgenerering">Textgenerering</option>
+                <option value="Bildgenerering">Bildgenerering</option>
+                <option value="Videogenerering">Videogenerering</option>
+                <option value="Kodning">Kodning</option>
+                <option value="Analys">Analys</option>
+                <option value="Marknadsföring">Marknadsföring</option>
+                <option value="Automatisering">Automatisering</option>
+                <option value="Annat">Annat</option>
+            </select>
+        </div>
+
+        <button id="save-btn">💾 Spara verktyg</button>
+
+        <div class="button-group">
+            <button id="auto-detect-btn" class="auto-detect">✨ Auto-upptäck</button>
+            <button id="open-app-btn" class="open-app">🚀 Öppna app</button>
+        </div>
+
+        <div id="status" class="status"></div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

@@ -2068,6 +2068,32 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
 
+    // Check for pending tools from browser extension
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.local.get(['pendingTools'], async function(result) {
+            if (result.pendingTools && result.pendingTools.length > 0) {
+                const toolCount = result.pendingTools.length;
+                const importExtTools = confirm(`Du har ${toolCount} verktyg från browser extension!\n\nVill du importera dem?`);
+
+                if (importExtTools) {
+                    // Import all pending tools
+                    for (const tool of result.pendingTools) {
+                        await AIToolModel.add(tool);
+                    }
+
+                    // Clear pending tools
+                    chrome.storage.local.set({ pendingTools: [] });
+
+                    // Update display
+                    toolsData = await AIToolModel.getAll();
+                    displayTools();
+
+                    showNotification(`${toolCount} verktyg importerade från extension!`, 'success');
+                }
+            }
+        });
+    }
+
     // Check if URL contains shared data on load
     if (window.location.hash.startsWith('#share=')) {
         const encoded = window.location.hash.substring(7);
