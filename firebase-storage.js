@@ -15,17 +15,17 @@
 // Firebase Configuration
 // Get this from your Firebase Console -> Project Settings -> Your apps -> SDK setup
 const FIREBASE_CONFIG = {
-    apiKey: "", // e.g., "AIzaSyA..."
-    authDomain: "", // e.g., "your-project.firebaseapp.com"
-    databaseURL: "", // e.g., "https://your-project.firebaseio.com"
-    projectId: "", // e.g., "your-project"
-    storageBucket: "", // e.g., "your-project.appspot.com"
-    messagingSenderId: "", // e.g., "123456789"
-    appId: "" // e.g., "1:123456789:web:abc123"
+    apiKey: "AIzaSyDe0sx1ftn9COBPs5YstHtXO1ihCavt274",
+    authDomain: "aior-abb56.firebaseapp.com",
+    databaseURL: "https://aior-abb56-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "aior-abb56",
+    storageBucket: "aior-abb56.firebasestorage.app",
+    messagingSenderId: "108189054330",
+    appId: "1:108189054330:web:818ed1e7d6eae9d182d2c3"
 };
 
 // Enable Firebase (set to false to use localStorage instead)
-const ENABLE_FIREBASE = false;
+const ENABLE_FIREBASE = true;
 
 /**
  * Firebase Storage Manager
