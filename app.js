@@ -435,7 +435,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     // Hantera formulärinskickning
-    toolForm.addEventListener('submit', function(e) {
+    toolForm.addEventListener('submit', async function(e) {
         e.preventDefault();
 
         // Hämta taggar från checkboxes
@@ -476,7 +476,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
 
             // Uppdatera den lokala listan
-            toolsData = AIToolModel.getAll();
+            toolsData = await AIToolModel.getAll();
 
             // Uppdatera visningen
             displayTools();
@@ -569,25 +569,25 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (file) {
             const reader = new FileReader();
             
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
                     const importedData = JSON.parse(e.target.result);
-                    
+
                     if (Array.isArray(importedData)) {
                         // Fråga användaren hur importen ska hanteras
                         const importAction = confirm('Vill du ersätta befintlig data (OK) eller lägga till den nya datan (Avbryt)?');
-                        
+
                         if (importAction) {
                             // Ersätt befintlig data
-                            AIToolModel.save(importedData);
+                            await AIToolModel.save(importedData);
                         } else {
                             // Lägg till ny data
-                            const currentTools = AIToolModel.getAll();
-                            AIToolModel.save([...currentTools, ...importedData]);
+                            const currentTools = await AIToolModel.getAll();
+                            await AIToolModel.save([...currentTools, ...importedData]);
                         }
-                        
+
                         // Uppdatera den lokala listan
-                        toolsData = AIToolModel.getAll();
+                        toolsData = await AIToolModel.getAll();
                         // Uppdatera visningen
                         resetPagination();
                         displayTools();
@@ -1008,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Funktion för att visa verktyg med filtrering
-    function displayTools() {
+    async function displayTools() {
         // Hämta filtervärden
         const searchText = searchInput.value;
         const categoryFilterValue = categoryFilter.value;
@@ -1016,12 +1016,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         const ratingFilterValue = parseInt(ratingFilter.value) || 0;
         const sortBy = sortBySelect.value;
         const sortDirection = sortDirectionSelect.value;
-        
+
         // Debounce för sökningen
         clearTimeout(window.searchTimeout);
-        window.searchTimeout = setTimeout(() => {
+        window.searchTimeout = setTimeout(async () => {
             // Använd datamodellen för filtrering och sortering
-            let filteredTools = AIToolModel.filter({
+            let filteredTools = await AIToolModel.filter({
                 searchText: searchText || undefined,
                 category: categoryFilterValue,
                 price: priceFilterValue,
