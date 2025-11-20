@@ -684,9 +684,117 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        showNotification('Datan har exporterats till en fil!', 'success');
+        showNotification('Datan har exporterats till JSON-fil!', 'success');
     });
-    
+
+    // Exportera till CSV
+    const exportCsvBtn = document.getElementById('export-csv');
+    if (exportCsvBtn) {
+        exportCsvBtn.addEventListener('click', async function() {
+            const tools = await AIToolModel.getAll();
+
+            if (tools.length === 0) {
+                showNotification('Inga verktyg att exportera!', 'warning');
+                return;
+            }
+
+            // Create CSV header
+            const headers = ['Namn', 'URL', 'Beskrivning', 'Kategori', 'Pris', 'Kostnad', 'Betyg', 'Taggar', 'Anteckningar', 'Datum tillagt'];
+
+            // Create CSV rows
+            const csvRows = [headers.join(',')];
+
+            tools.forEach(tool => {
+                const row = [
+                    `"${(tool.name || '').replace(/"/g, '""')}"`,
+                    `"${(tool.url || '').replace(/"/g, '""')}"`,
+                    `"${(tool.description || '').replace(/"/g, '""')}"`,
+                    `"${(tool.category || '').replace(/"/g, '""')}"`,
+                    `"${(tool.price || '').replace(/"/g, '""')}"`,
+                    `"${(tool.cost || '').replace(/"/g, '""')}"`,
+                    tool.rating || '',
+                    `"${(tool.tags || []).join(', ')}"`,
+                    `"${(tool.notes || '').replace(/"/g, '""')}"`,
+                    `"${tool.dateAdded || ''}"`
+                ];
+                csvRows.push(row.join(','));
+            });
+
+            const csvContent = csvRows.join('\n');
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ai-tools-export-' + new Date().toISOString().slice(0, 10) + '.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showNotification(`${tools.length} verktyg exporterade till CSV!`, 'success');
+        });
+    }
+
+    // Exportera till Excel
+    const exportExcelBtn = document.getElementById('export-excel');
+    if (exportExcelBtn) {
+        exportExcelBtn.addEventListener('click', async function() {
+            const tools = await AIToolModel.getAll();
+
+            if (tools.length === 0) {
+                showNotification('Inga verktyg att exportera!', 'warning');
+                return;
+            }
+
+            if (typeof XLSX === 'undefined') {
+                showNotification('Excel-biblioteket kunde inte laddas. Prova CSV istället.', 'error');
+                return;
+            }
+
+            // Prepare data for Excel
+            const excelData = tools.map(tool => ({
+                'Namn': tool.name || '',
+                'URL': tool.url || '',
+                'Beskrivning': tool.description || '',
+                'Kategori': tool.category || '',
+                'Pris': tool.price || '',
+                'Kostnad': tool.cost || '',
+                'Betyg': tool.rating || 0,
+                'Taggar': (tool.tags || []).join(', '),
+                'Anteckningar': tool.notes || '',
+                'Datum tillagt': tool.dateAdded || ''
+            }));
+
+            // Create workbook and worksheet
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(excelData);
+
+            // Auto-size columns
+            const colWidths = [
+                { wch: 25 }, // Namn
+                { wch: 40 }, // URL
+                { wch: 50 }, // Beskrivning
+                { wch: 18 }, // Kategori
+                { wch: 15 }, // Pris
+                { wch: 12 }, // Kostnad
+                { wch: 8 },  // Betyg
+                { wch: 30 }, // Taggar
+                { wch: 40 }, // Anteckningar
+                { wch: 18 }  // Datum
+            ];
+            ws['!cols'] = colWidths;
+
+            // Add worksheet to workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'AI-verktyg');
+
+            // Generate Excel file
+            XLSX.writeFile(wb, 'ai-tools-export-' + new Date().toISOString().slice(0, 10) + '.xlsx');
+
+            showNotification(`${tools.length} verktyg exporterade till Excel!`, 'success');
+        });
+    }
+
     // Importera data
     importDataBtn.addEventListener('click', function() {
         const fileInput = document.getElementById('import-file');
