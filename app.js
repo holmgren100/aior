@@ -1115,15 +1115,15 @@ document.addEventListener('DOMContentLoaded', async function() {
                     editTool(toolId);
                 });
                 
-                deleteBtn.addEventListener('click', function() {
+                deleteBtn.addEventListener('click', async function() {
                     const toolId = this.getAttribute('data-id');
-                    const toolToDelete = AIToolModel.find(toolId);
-                    
+                    const toolToDelete = await AIToolModel.find(toolId);
+
                     if (confirm(`Är du säker på att du vill ta bort "${toolToDelete.name}"?`)) {
                         try {
-                            AIToolModel.delete(toolId);
+                            await AIToolModel.delete(toolId);
                             // Uppdatera den lokala listan
-                            toolsData = AIToolModel.getAll();
+                            toolsData = await AIToolModel.getAll();
                             displayTools();
                             showNotification(`"${toolToDelete.name}" har tagits bort.`, 'info');
                         } catch (error) {
@@ -1230,8 +1230,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Funktion för att redigera ett verktyg
-    function editTool(id) {
-        const tool = AIToolModel.find(id);
+    async function editTool(id) {
+        const tool = await AIToolModel.find(id);
 
         if (!tool) {
             showNotification('Verktyget kunde inte hittas!', 'error');
