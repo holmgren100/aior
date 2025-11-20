@@ -386,7 +386,12 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Edit mode tracking
     let editingToolId = null;
-    
+
+    // Quick Capture and Find URL elements
+    const quickCaptureBtn = document.getElementById('quick-capture-btn');
+    const findUrlBtn = document.getElementById('find-url-btn');
+    let quickCaptureMode = false;
+
     // Visa alla verktyg när sidan laddas
     displayTools();
 
@@ -431,6 +436,127 @@ document.addEventListener('DOMContentLoaded', async function() {
             document.getElementById('custom-tags').value = [...new Set(allCustomTags)].join(', ');
 
             showNotification(`AI-förslag tillämpade! Kategori: ${analysis.category}, Pris: ${analysis.price}, Taggar: ${analysis.tags.length}`, 'success');
+        });
+    }
+
+    // Quick Capture Mode Toggle
+    if (quickCaptureBtn) {
+        quickCaptureBtn.addEventListener('click', function() {
+            quickCaptureMode = !quickCaptureMode;
+
+            if (quickCaptureMode) {
+                // Enable Quick Capture Mode
+                const formSection = document.querySelector('.input-section');
+                formSection.classList.add('quick-capture-mode');
+
+                // Show badge
+                const badge = document.createElement('div');
+                badge.className = 'quick-capture-mode-badge';
+                badge.id = 'quick-capture-badge';
+                badge.textContent = '⚡ Snabbregistrering aktiverad - Fyll bara i namn och beskrivning!';
+                formSection.insertBefore(badge, toolForm);
+
+                // Update button
+                quickCaptureBtn.textContent = '❌ Avsluta snabbregistrering';
+                quickCaptureBtn.style.background = '#e74c3c';
+
+                // Make most fields optional (just show what's needed)
+                document.getElementById('tool-url').parentElement.style.opacity = '0.5';
+                document.getElementById('tool-category').parentElement.style.opacity = '0.5';
+                document.getElementById('tool-price').parentElement.style.opacity = '0.5';
+                document.getElementById('tool-rating').parentElement.style.opacity = '0.5';
+
+                showNotification('Snabbregistrering aktiverad! Fyll bara i namn och beskrivning.', 'info');
+            } else {
+                // Disable Quick Capture Mode
+                const formSection = document.querySelector('.input-section');
+                formSection.classList.remove('quick-capture-mode');
+
+                // Remove badge
+                const badge = document.getElementById('quick-capture-badge');
+                if (badge) badge.remove();
+
+                // Reset button
+                quickCaptureBtn.textContent = '⚡ Snabbregistrering';
+                quickCaptureBtn.style.background = '';
+
+                // Restore field opacity
+                document.getElementById('tool-url').parentElement.style.opacity = '1';
+                document.getElementById('tool-category').parentElement.style.opacity = '1';
+                document.getElementById('tool-price').parentElement.style.opacity = '1';
+                document.getElementById('tool-rating').parentElement.style.opacity = '1';
+
+                showNotification('Snabbregistrering avslutad.', 'info');
+            }
+        });
+    }
+
+    // Find URL Button - Auto-search for URL based on tool name
+    if (findUrlBtn) {
+        findUrlBtn.addEventListener('click', async function() {
+            const toolName = document.getElementById('tool-name').value.trim();
+
+            if (!toolName) {
+                showNotification('Fyll i verktygets namn först!', 'warning');
+                return;
+            }
+
+            findUrlBtn.textContent = '🔍 Söker...';
+            findUrlBtn.disabled = true;
+
+            try {
+                // Try to find URL using metadata scraper if available
+                // Create a search query
+                const searchQuery = `${toolName} official website`;
+                const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
+
+                // For now, we'll use a simple heuristic: try common patterns
+                const possibleUrls = [
+                    `https://${toolName.toLowerCase().replace(/\s+/g, '')}.com`,
+                    `https://${toolName.toLowerCase().replace(/\s+/g, '-')}.com`,
+                    `https://www.${toolName.toLowerCase().replace(/\s+/g, '')}.com`,
+                    `https://${toolName.toLowerCase().replace(/\s+/g, '')}.ai`,
+                    `https://${toolName.toLowerCase().replace(/\s+/g, '')}.io`
+                ];
+
+                // Try each URL
+                let foundUrl = null;
+                for (const url of possibleUrls) {
+                    try {
+                        if (CONFIG.ENABLE_METADATA_SCRAPING && CONFIG.CLOUDFLARE_WORKER_URL) {
+                            const metadata = await fetchMetadata(url);
+                            if (metadata && metadata.title) {
+                                foundUrl = url;
+                                document.getElementById('tool-url').value = url;
+
+                                // Also fill in description if empty
+                                if (!document.getElementById('tool-description').value && metadata.description) {
+                                    document.getElementById('tool-description').value = metadata.description;
+                                }
+
+                                showNotification(`✅ Hittade: ${url}`, 'success');
+                                break;
+                            }
+                        }
+                    } catch (e) {
+                        // Continue to next URL
+                        continue;
+                    }
+                }
+
+                if (!foundUrl) {
+                    // Open Google search in new tab as fallback
+                    showNotification(`Kunde inte hitta URL automatiskt. Öppnar Google-sökning...`, 'info');
+                    window.open(searchUrl, '_blank');
+                }
+
+            } catch (error) {
+                console.error('Error finding URL:', error);
+                showNotification('Ett fel uppstod vid sökning. Försök söka manuellt.', 'error');
+            } finally {
+                findUrlBtn.textContent = '🔍 Hitta URL';
+                findUrlBtn.disabled = false;
+            }
         });
     }
 

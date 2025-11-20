@@ -98,7 +98,12 @@
     
     <div class="container">
         <div class="input-section">
-            <h2 id="form-heading">Lägg till AI-verktyg</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 id="form-heading" style="margin: 0;">Lägg till AI-verktyg</h2>
+                <button type="button" id="quick-capture-btn" class="quick-capture-btn" title="Snabb registrering - spara verktyg utan URL">
+                    ⚡ Snabbregistrering
+                </button>
+            </div>
             <form id="tool-form" aria-labelledby="form-heading">
                 <div class="form-group">
                     <label for="tool-name">Namn på verktyg:</label>
@@ -107,7 +112,13 @@
                 
                 <div class="form-group">
                     <label for="tool-url">URL/Hemsida:</label>
-                    <input type="url" id="tool-url" placeholder="https://...">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="url" id="tool-url" placeholder="https://..." style="flex: 1;">
+                        <button type="button" id="find-url-btn" class="find-url-btn" title="Hitta URL automatiskt baserat på verktygets namn">
+                            🔍 Hitta URL
+                        </button>
+                    </div>
+                    <small style="color: #7f8c8d; font-size: 0.85em;">URL är valfri - du kan lägga till den senare</small>
                 </div>
                 
                 <div class="form-group">
