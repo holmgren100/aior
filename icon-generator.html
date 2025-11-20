@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Icon Generator - AI Tools Organizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .preview {
+            display: flex;
+            gap: 30px;
+            margin: 30px 0;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .icon-preview {
+            text-align: center;
+        }
+
+        .icon-preview h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        canvas {
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .success {
+            background: #10b981;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .instructions {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+
+        .instructions h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            color: #555;
+            line-height: 1.8;
+        }
+
+        .color-picker-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .color-picker-section label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="color"] {
+            width: 100%;
+            height: 50px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 PWA Icon Generator</h1>
+        <p class="subtitle">Skapa ikoner för AI Tools Organizer</p>
+
+        <div class="color-picker-section">
+            <label for="iconColor">Välj ikonfärg:</label>
+            <input type="color" id="iconColor" value="#667eea">
+        </div>
+
+        <div class="preview">
+            <div class="icon-preview">
+                <h3>192×192 px</h3>
+                <canvas id="canvas192" width="192" height="192"></canvas>
+            </div>
+            <div class="icon-preview">
+                <h3>512×512 px</h3>
+                <canvas id="canvas512" width="512" height="512"></canvas>
+            </div>
+        </div>
+
+        <div class="buttons">
+            <button onclick="downloadIcon(192)">⬇ Ladda ner 192×192</button>
+            <button onclick="downloadIcon(512)">⬇ Ladda ner 512×512</button>
+            <button onclick="downloadBoth()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                ⬇ Ladda ner båda
+            </button>
+        </div>
+
+        <div class="success" id="success">
+            ✅ Ikoner nedladdade! Placera dem i din projektmapp.
+        </div>
+
+        <div class="instructions">
+            <h3>📋 Instruktioner:</h3>
+            <ol>
+                <li>Välj en färg för dina ikoner (standard: lila)</li>
+                <li>Klicka på "Ladda ner båda" för att ladda ner båda ikonerna</li>
+                <li>Spara dem i din projektmapp som:
+                    <ul>
+                        <li><code>icon-192.png</code></li>
+                        <li><code>icon-512.png</code></li>
+                    </ul>
+                </li>
+                <li>Din app är nu redo att installeras som PWA! 🎉</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const colorPicker = document.getElementById('iconColor');
+
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            const color = colorPicker.value;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, color);
+            gradient.addColorStop(1, adjustColor(color, -30));
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+
+            // Draw "AI" text
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size * 0.4}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('AI', size / 2, size / 2.2);
+
+            // Draw "TOOLS" text
+            ctx.font = `${size * 0.12}px Arial`;
+            ctx.fillText('TOOLS', size / 2, size / 1.5);
+
+            // Add subtle shine effect
+            const shine = ctx.createLinearGradient(0, 0, 0, size);
+            shine.addColorStop(0, 'rgba(255,255,255,0.2)');
+            shine.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = shine;
+            ctx.fillRect(0, 0, size, size);
+        }
+
+        function adjustColor(color, amount) {
+            const hex = color.replace('#', '');
+            const r = Math.max(0, Math.min(255, parseInt(hex.substr(0, 2), 16) + amount));
+            const g = Math.max(0, Math.min(255, parseInt(hex.substr(2, 2), 16) + amount));
+            const b = Math.max(0, Math.min(255, parseInt(hex.substr(4, 2), 16) + amount));
+            return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        }
+
+        function updatePreviews() {
+            const canvas192 = document.getElementById('canvas192');
+            const canvas512 = document.getElementById('canvas512');
+            drawIcon(canvas192, 192);
+            drawIcon(canvas512, 512);
+        }
+
+        function downloadIcon(size) {
+            const canvas = document.getElementById(`canvas${size}`);
+            const link = document.createElement('a');
+            link.download = `icon-${size}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            showSuccess();
+        }
+
+        function downloadBoth() {
+            setTimeout(() => downloadIcon(192), 100);
+            setTimeout(() => downloadIcon(512), 300);
+        }
+
+        function showSuccess() {
+            const success = document.getElementById('success');
+            success.style.display = 'block';
+            setTimeout(() => {
+                success.style.display = 'none';
+            }, 3000);
+        }
+
+        // Update previews when color changes
+        colorPicker.addEventListener('input', updatePreviews);
+
+        // Initial draw
+        updatePreviews();
+    </script>
+</body>
+</html>
