@@ -98,7 +98,12 @@
     
     <div class="container">
         <div class="input-section">
-            <h2 id="form-heading">Lägg till AI-verktyg</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 id="form-heading" style="margin: 0;">Lägg till AI-verktyg</h2>
+                <button type="button" id="quick-capture-btn" class="quick-capture-btn" title="Snabb registrering - spara verktyg utan URL">
+                    ⚡ Snabbregistrering
+                </button>
+            </div>
             <form id="tool-form" aria-labelledby="form-heading">
                 <div class="form-group">
                     <label for="tool-name">Namn på verktyg:</label>
@@ -107,7 +112,13 @@
                 
                 <div class="form-group">
                     <label for="tool-url">URL/Hemsida:</label>
-                    <input type="url" id="tool-url" placeholder="https://...">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="url" id="tool-url" placeholder="https://..." style="flex: 1;">
+                        <button type="button" id="find-url-btn" class="find-url-btn" title="Hitta URL automatiskt baserat på verktygets namn">
+                            🔍 Hitta URL
+                        </button>
+                    </div>
+                    <small style="color: #7f8c8d; font-size: 0.85em;">URL är valfri - du kan lägga till den senare</small>
                 </div>
                 
                 <div class="form-group">
@@ -207,12 +218,22 @@
                 <button id="bulk-import-btn" aria-label="Öppna massimport" title="Importera flera verktyg samtidigt från URL:er eller text">Massimport av URL:er</button>
 
                 <h3 style="margin-top: 20px;">Exportera/Importera data</h3>
-                <button id="export-data" aria-label="Exportera alla verktyg till JSON-fil" title="Exportera dina AI-verktyg till en JSON-fil för backup eller delning">Exportera till fil</button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                    <button id="export-data" aria-label="Exportera alla verktyg till JSON-fil" title="Exportera dina AI-verktyg till en JSON-fil för backup eller delning">📄 Exportera JSON</button>
+                    <button id="export-csv" aria-label="Exportera alla verktyg till CSV-fil" title="Exportera till CSV för Excel, Google Sheets, etc.">📊 Exportera CSV</button>
+                    <button id="export-excel" aria-label="Exportera alla verktyg till Excel-fil" title="Exportera till Excel (.xlsx) med formatering">📗 Exportera Excel</button>
+                </div>
                 <div class="form-group">
                     <label for="import-file">Importera från fil:</label>
                     <input type="file" id="import-file" accept=".json" aria-label="Välj JSON-fil att importera">
                 </div>
-                <button id="import-data" aria-label="Importera verktyg från JSON-fil" title="Importera AI-verktyg från en tidigare exporterad JSON-fil">Importera</button>
+                <button id="import-data" aria-label="Importera verktyg från JSON-fil" title="Importera AI-verktyg från en tidigare exporterad JSON-fil">Importera från fil</button>
+
+                <h3 style="margin-top: 20px;">Dela med vänner</h3>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button id="share-list-btn" aria-label="Dela din verktyglista" title="Skapa delbar länk för dina verktyg">🔗 Dela lista</button>
+                    <button id="import-shared-btn" aria-label="Importera delad lista" title="Importera verktyg från en delad länk">📥 Importera delad</button>
+                </div>
             </div>
         </div>
         
@@ -263,14 +284,81 @@
         </div>
     </div>
 
-    <!-- Optional: Firebase SDK for cloud sync (see FIREBASE-SETUP.md) -->
-    <!-- Uncomment these lines after setting up Firebase:
+    <!-- Share List Modal -->
+    <div id="share-modal" class="modal" role="dialog" aria-labelledby="share-title" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="share-title">Dela din verktyglista</h2>
+                <button class="modal-close" aria-label="Stäng modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Dela dina AI-verktyg med vänner! De kan importera hela din lista med ett klick.</p>
+
+                <div class="form-group">
+                    <label for="share-link">Delbar länk:</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="share-link" readonly style="flex: 1; font-family: monospace; font-size: 12px;">
+                        <button id="copy-link-btn" class="primary-btn" title="Kopiera länk">📋 Kopiera</button>
+                    </div>
+                    <small style="color: #666; margin-top: 5px; display: block;">
+                        Skicka denna länk till dina vänner. De kan importera alla dina verktyg direkt!
+                    </small>
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;">
+                    <label for="share-code">Delningskod (kortare alternativ):</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="share-code" readonly style="flex: 1; font-family: monospace; font-size: 14px; font-weight: bold; letter-spacing: 2px;">
+                        <button id="copy-code-btn" class="primary-btn" title="Kopiera kod">📋 Kopiera</button>
+                    </div>
+                    <small style="color: #666; margin-top: 5px; display: block;">
+                        En kort kod som dina vänner kan skriva in manuellt
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-cancel-btn">Stäng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Shared List Modal -->
+    <div id="import-shared-modal" class="modal" role="dialog" aria-labelledby="import-shared-title" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="import-shared-title">Importera delad lista</h2>
+                <button class="modal-close" aria-label="Stäng modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Importera verktyg från en vän! Klistra in länken eller koden du fått.</p>
+
+                <div class="form-group">
+                    <label for="import-share-link">Klistra in delbar länk:</label>
+                    <textarea id="import-share-link" placeholder="https://aior-ai.netlify.app/#share=..." rows="3"></textarea>
+                </div>
+
+                <div style="text-align: center; margin: 15px 0; color: #999;">ELLER</div>
+
+                <div class="form-group">
+                    <label for="import-share-code">Ange delningskod:</label>
+                    <input type="text" id="import-share-code" placeholder="XXXXX-XXXXX" style="font-family: monospace; font-size: 14px; letter-spacing: 2px; text-transform: uppercase;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="do-import-shared-btn" class="primary-btn">Importera verktyg</button>
+                <button class="modal-cancel-btn">Avbryt</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK for cloud sync -->
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database-compat.js"></script>
     <script src="firebase-storage.js"></script>
-    -->
 
     <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
+    <!-- SheetJS for Excel export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="app.js"></script>
 
     <!-- PWA Service Worker Registration -->

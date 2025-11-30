@@ -195,16 +195,16 @@ class AIToolModel {
 const CONFIG = {
     // Cloudflare Worker URL for metadata scraping
     // Set this to your deployed worker URL, or leave empty to disable
-    CLOUDFLARE_WORKER_URL: '', // e.g., 'https://metadata-scraper.yourname.workers.dev'
+    CLOUDFLARE_WORKER_URL: 'https://metadata-scraper.holmgren100.workers.dev',
     // Enable metadata scraping (set to false if worker not deployed)
-    ENABLE_METADATA_SCRAPING: false,
+    ENABLE_METADATA_SCRAPING: true,
 
     // OCR.space API key for image text extraction
     // Get free key at: https://ocr.space/ocrapi
     // Free tier: 25,000 requests/month
-    OCR_API_KEY: '', // e.g., 'K87654321088957'
+    OCR_API_KEY: 'K86490861088957',
     // Enable OCR (set to false if no API key)
-    ENABLE_OCR: false,
+    ENABLE_OCR: true,
 
     // Enable automated tagging and categorization
     ENABLE_AUTO_TAGGING: true
@@ -386,7 +386,12 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Edit mode tracking
     let editingToolId = null;
-    
+
+    // Quick Capture and Find URL elements
+    const quickCaptureBtn = document.getElementById('quick-capture-btn');
+    const findUrlBtn = document.getElementById('find-url-btn');
+    let quickCaptureMode = false;
+
     // Visa alla verktyg när sidan laddas
     displayTools();
 
@@ -434,8 +439,129 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
 
+    // Quick Capture Mode Toggle
+    if (quickCaptureBtn) {
+        quickCaptureBtn.addEventListener('click', function() {
+            quickCaptureMode = !quickCaptureMode;
+
+            if (quickCaptureMode) {
+                // Enable Quick Capture Mode
+                const formSection = document.querySelector('.input-section');
+                formSection.classList.add('quick-capture-mode');
+
+                // Show badge
+                const badge = document.createElement('div');
+                badge.className = 'quick-capture-mode-badge';
+                badge.id = 'quick-capture-badge';
+                badge.textContent = '⚡ Snabbregistrering aktiverad - Fyll bara i namn och beskrivning!';
+                formSection.insertBefore(badge, toolForm);
+
+                // Update button
+                quickCaptureBtn.textContent = '❌ Avsluta snabbregistrering';
+                quickCaptureBtn.style.background = '#e74c3c';
+
+                // Make most fields optional (just show what's needed)
+                document.getElementById('tool-url').parentElement.style.opacity = '0.5';
+                document.getElementById('tool-category').parentElement.style.opacity = '0.5';
+                document.getElementById('tool-price').parentElement.style.opacity = '0.5';
+                document.getElementById('tool-rating').parentElement.style.opacity = '0.5';
+
+                showNotification('Snabbregistrering aktiverad! Fyll bara i namn och beskrivning.', 'info');
+            } else {
+                // Disable Quick Capture Mode
+                const formSection = document.querySelector('.input-section');
+                formSection.classList.remove('quick-capture-mode');
+
+                // Remove badge
+                const badge = document.getElementById('quick-capture-badge');
+                if (badge) badge.remove();
+
+                // Reset button
+                quickCaptureBtn.textContent = '⚡ Snabbregistrering';
+                quickCaptureBtn.style.background = '';
+
+                // Restore field opacity
+                document.getElementById('tool-url').parentElement.style.opacity = '1';
+                document.getElementById('tool-category').parentElement.style.opacity = '1';
+                document.getElementById('tool-price').parentElement.style.opacity = '1';
+                document.getElementById('tool-rating').parentElement.style.opacity = '1';
+
+                showNotification('Snabbregistrering avslutad.', 'info');
+            }
+        });
+    }
+
+    // Find URL Button - Auto-search for URL based on tool name
+    if (findUrlBtn) {
+        findUrlBtn.addEventListener('click', async function() {
+            const toolName = document.getElementById('tool-name').value.trim();
+
+            if (!toolName) {
+                showNotification('Fyll i verktygets namn först!', 'warning');
+                return;
+            }
+
+            findUrlBtn.textContent = '🔍 Söker...';
+            findUrlBtn.disabled = true;
+
+            try {
+                // Try to find URL using metadata scraper if available
+                // Create a search query
+                const searchQuery = `${toolName} official website`;
+                const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
+
+                // For now, we'll use a simple heuristic: try common patterns
+                const possibleUrls = [
+                    `https://${toolName.toLowerCase().replace(/\s+/g, '')}.com`,
+                    `https://${toolName.toLowerCase().replace(/\s+/g, '-')}.com`,
+                    `https://www.${toolName.toLowerCase().replace(/\s+/g, '')}.com`,
+                    `https://${toolName.toLowerCase().replace(/\s+/g, '')}.ai`,
+                    `https://${toolName.toLowerCase().replace(/\s+/g, '')}.io`
+                ];
+
+                // Try each URL
+                let foundUrl = null;
+                for (const url of possibleUrls) {
+                    try {
+                        if (CONFIG.ENABLE_METADATA_SCRAPING && CONFIG.CLOUDFLARE_WORKER_URL) {
+                            const metadata = await fetchMetadata(url);
+                            if (metadata && metadata.title) {
+                                foundUrl = url;
+                                document.getElementById('tool-url').value = url;
+
+                                // Also fill in description if empty
+                                if (!document.getElementById('tool-description').value && metadata.description) {
+                                    document.getElementById('tool-description').value = metadata.description;
+                                }
+
+                                showNotification(`✅ Hittade: ${url}`, 'success');
+                                break;
+                            }
+                        }
+                    } catch (e) {
+                        // Continue to next URL
+                        continue;
+                    }
+                }
+
+                if (!foundUrl) {
+                    // Open Google search in new tab as fallback
+                    showNotification(`Kunde inte hitta URL automatiskt. Öppnar Google-sökning...`, 'info');
+                    window.open(searchUrl, '_blank');
+                }
+
+            } catch (error) {
+                console.error('Error finding URL:', error);
+                showNotification('Ett fel uppstod vid sökning. Försök söka manuellt.', 'error');
+            } finally {
+                findUrlBtn.textContent = '🔍 Hitta URL';
+                findUrlBtn.disabled = false;
+            }
+        });
+    }
+
     // Hantera formulärinskickning
-    toolForm.addEventListener('submit', function(e) {
+    toolForm.addEventListener('submit', async function(e) {
         e.preventDefault();
 
         // Hämta taggar från checkboxes
@@ -476,7 +602,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
 
             // Uppdatera den lokala listan
-            toolsData = AIToolModel.getAll();
+            toolsData = await AIToolModel.getAll();
 
             // Uppdatera visningen
             displayTools();
@@ -558,9 +684,117 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        showNotification('Datan har exporterats till en fil!', 'success');
+        showNotification('Datan har exporterats till JSON-fil!', 'success');
     });
-    
+
+    // Exportera till CSV
+    const exportCsvBtn = document.getElementById('export-csv');
+    if (exportCsvBtn) {
+        exportCsvBtn.addEventListener('click', async function() {
+            const tools = await AIToolModel.getAll();
+
+            if (tools.length === 0) {
+                showNotification('Inga verktyg att exportera!', 'warning');
+                return;
+            }
+
+            // Create CSV header
+            const headers = ['Namn', 'URL', 'Beskrivning', 'Kategori', 'Pris', 'Kostnad', 'Betyg', 'Taggar', 'Anteckningar', 'Datum tillagt'];
+
+            // Create CSV rows
+            const csvRows = [headers.join(',')];
+
+            tools.forEach(tool => {
+                const row = [
+                    `"${(tool.name || '').replace(/"/g, '""')}"`,
+                    `"${(tool.url || '').replace(/"/g, '""')}"`,
+                    `"${(tool.description || '').replace(/"/g, '""')}"`,
+                    `"${(tool.category || '').replace(/"/g, '""')}"`,
+                    `"${(tool.price || '').replace(/"/g, '""')}"`,
+                    `"${(tool.cost || '').replace(/"/g, '""')}"`,
+                    tool.rating || '',
+                    `"${(tool.tags || []).join(', ')}"`,
+                    `"${(tool.notes || '').replace(/"/g, '""')}"`,
+                    `"${tool.dateAdded || ''}"`
+                ];
+                csvRows.push(row.join(','));
+            });
+
+            const csvContent = csvRows.join('\n');
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ai-tools-export-' + new Date().toISOString().slice(0, 10) + '.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showNotification(`${tools.length} verktyg exporterade till CSV!`, 'success');
+        });
+    }
+
+    // Exportera till Excel
+    const exportExcelBtn = document.getElementById('export-excel');
+    if (exportExcelBtn) {
+        exportExcelBtn.addEventListener('click', async function() {
+            const tools = await AIToolModel.getAll();
+
+            if (tools.length === 0) {
+                showNotification('Inga verktyg att exportera!', 'warning');
+                return;
+            }
+
+            if (typeof XLSX === 'undefined') {
+                showNotification('Excel-biblioteket kunde inte laddas. Prova CSV istället.', 'error');
+                return;
+            }
+
+            // Prepare data for Excel
+            const excelData = tools.map(tool => ({
+                'Namn': tool.name || '',
+                'URL': tool.url || '',
+                'Beskrivning': tool.description || '',
+                'Kategori': tool.category || '',
+                'Pris': tool.price || '',
+                'Kostnad': tool.cost || '',
+                'Betyg': tool.rating || 0,
+                'Taggar': (tool.tags || []).join(', '),
+                'Anteckningar': tool.notes || '',
+                'Datum tillagt': tool.dateAdded || ''
+            }));
+
+            // Create workbook and worksheet
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(excelData);
+
+            // Auto-size columns
+            const colWidths = [
+                { wch: 25 }, // Namn
+                { wch: 40 }, // URL
+                { wch: 50 }, // Beskrivning
+                { wch: 18 }, // Kategori
+                { wch: 15 }, // Pris
+                { wch: 12 }, // Kostnad
+                { wch: 8 },  // Betyg
+                { wch: 30 }, // Taggar
+                { wch: 40 }, // Anteckningar
+                { wch: 18 }  // Datum
+            ];
+            ws['!cols'] = colWidths;
+
+            // Add worksheet to workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'AI-verktyg');
+
+            // Generate Excel file
+            XLSX.writeFile(wb, 'ai-tools-export-' + new Date().toISOString().slice(0, 10) + '.xlsx');
+
+            showNotification(`${tools.length} verktyg exporterade till Excel!`, 'success');
+        });
+    }
+
     // Importera data
     importDataBtn.addEventListener('click', function() {
         const fileInput = document.getElementById('import-file');
@@ -569,25 +803,25 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (file) {
             const reader = new FileReader();
             
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
                     const importedData = JSON.parse(e.target.result);
-                    
+
                     if (Array.isArray(importedData)) {
                         // Fråga användaren hur importen ska hanteras
                         const importAction = confirm('Vill du ersätta befintlig data (OK) eller lägga till den nya datan (Avbryt)?');
-                        
+
                         if (importAction) {
                             // Ersätt befintlig data
-                            AIToolModel.save(importedData);
+                            await AIToolModel.save(importedData);
                         } else {
                             // Lägg till ny data
-                            const currentTools = AIToolModel.getAll();
-                            AIToolModel.save([...currentTools, ...importedData]);
+                            const currentTools = await AIToolModel.getAll();
+                            await AIToolModel.save([...currentTools, ...importedData]);
                         }
-                        
+
                         // Uppdatera den lokala listan
-                        toolsData = AIToolModel.getAll();
+                        toolsData = await AIToolModel.getAll();
                         // Uppdatera visningen
                         resetPagination();
                         displayTools();
@@ -1008,7 +1242,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Funktion för att visa verktyg med filtrering
-    function displayTools() {
+    async function displayTools() {
         // Hämta filtervärden
         const searchText = searchInput.value;
         const categoryFilterValue = categoryFilter.value;
@@ -1016,12 +1250,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         const ratingFilterValue = parseInt(ratingFilter.value) || 0;
         const sortBy = sortBySelect.value;
         const sortDirection = sortDirectionSelect.value;
-        
+
         // Debounce för sökningen
         clearTimeout(window.searchTimeout);
-        window.searchTimeout = setTimeout(() => {
+        window.searchTimeout = setTimeout(async () => {
             // Använd datamodellen för filtrering och sortering
-            let filteredTools = AIToolModel.filter({
+            let filteredTools = await AIToolModel.filter({
                 searchText: searchText || undefined,
                 category: categoryFilterValue,
                 price: priceFilterValue,
@@ -1115,15 +1349,15 @@ document.addEventListener('DOMContentLoaded', async function() {
                     editTool(toolId);
                 });
                 
-                deleteBtn.addEventListener('click', function() {
+                deleteBtn.addEventListener('click', async function() {
                     const toolId = this.getAttribute('data-id');
-                    const toolToDelete = AIToolModel.find(toolId);
-                    
+                    const toolToDelete = await AIToolModel.find(toolId);
+
                     if (confirm(`Är du säker på att du vill ta bort "${toolToDelete.name}"?`)) {
                         try {
-                            AIToolModel.delete(toolId);
+                            await AIToolModel.delete(toolId);
                             // Uppdatera den lokala listan
-                            toolsData = AIToolModel.getAll();
+                            toolsData = await AIToolModel.getAll();
                             displayTools();
                             showNotification(`"${toolToDelete.name}" har tagits bort.`, 'info');
                         } catch (error) {
@@ -1230,8 +1464,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // Funktion för att redigera ett verktyg
-    function editTool(id) {
-        const tool = AIToolModel.find(id);
+    async function editTool(id) {
+        const tool = await AIToolModel.find(id);
 
         if (!tool) {
             showNotification('Verktyget kunde inte hittas!', 'error');
@@ -1608,4 +1842,284 @@ document.addEventListener('DOMContentLoaded', async function() {
     addTooltips();
     enhanceFormValidation();
     enhanceToolDisplay();
+
+    // ==================== SHARE FUNCTIONALITY ====================
+
+    const shareModal = document.getElementById('share-modal');
+    const importSharedModal = document.getElementById('import-shared-modal');
+    const shareListBtn = document.getElementById('share-list-btn');
+    const importSharedBtn = document.getElementById('import-shared-btn');
+    const shareLinkInput = document.getElementById('share-link');
+    const shareCodeInput = document.getElementById('share-code');
+    const copyLinkBtn = document.getElementById('copy-link-btn');
+    const copyCodeBtn = document.getElementById('copy-code-btn');
+    const importShareLinkInput = document.getElementById('import-share-link');
+    const importShareCodeInput = document.getElementById('import-share-code');
+    const doImportSharedBtn = document.getElementById('do-import-shared-btn');
+
+    // Generate random share code
+    function generateShareCode() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed similar chars
+        let code = '';
+        for (let i = 0; i < 10; i++) {
+            if (i === 5) code += '-';
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return code;
+    }
+
+    // Compress and encode data for URL
+    function encodeToolsData(tools) {
+        const jsonStr = JSON.stringify(tools);
+        // Base64 encode
+        return btoa(unescape(encodeURIComponent(jsonStr)));
+    }
+
+    // Decode tools data from URL
+    function decodeToolsData(encoded) {
+        try {
+            const jsonStr = decodeURIComponent(escape(atob(encoded)));
+            return JSON.parse(jsonStr);
+        } catch (e) {
+            console.error('Error decoding tools data:', e);
+            return null;
+        }
+    }
+
+    // Open share modal and generate links
+    if (shareListBtn) {
+        shareListBtn.addEventListener('click', async function() {
+            const tools = await AIToolModel.getAll();
+
+            if (tools.length === 0) {
+                showNotification('Du har inga verktyg att dela!', 'warning');
+                return;
+            }
+
+            // Generate shareable link
+            const encodedData = encodeToolsData(tools);
+            const shareUrl = `${window.location.origin}${window.location.pathname}#share=${encodedData}`;
+
+            // Generate share code and store in Firebase or localStorage
+            const shareCode = generateShareCode();
+            const shareData = {
+                code: shareCode,
+                tools: tools,
+                createdAt: new Date().toISOString(),
+                toolCount: tools.length
+            };
+
+            // Store share code mapping
+            if (window.FirebaseStorage && window.FirebaseStorage.isEnabled()) {
+                // Store in Firebase for persistence
+                const shareRef = firebase.database().ref(`shared/${shareCode}`);
+                await shareRef.set(shareData);
+            } else {
+                // Store in localStorage as fallback
+                const shares = JSON.parse(localStorage.getItem('aitools_shares') || '{}');
+                shares[shareCode] = shareData;
+                localStorage.setItem('aitools_shares', JSON.stringify(shares));
+            }
+
+            // Update modal fields
+            shareLinkInput.value = shareUrl;
+            shareCodeInput.value = shareCode;
+
+            // Show modal
+            shareModal.style.display = 'flex';
+            shareModal.setAttribute('aria-hidden', 'false');
+
+            showNotification(`Delningslänk skapad! ${tools.length} verktyg redo att delas.`, 'success');
+        });
+    }
+
+    // Copy link to clipboard
+    if (copyLinkBtn) {
+        copyLinkBtn.addEventListener('click', function() {
+            shareLinkInput.select();
+            document.execCommand('copy');
+            showNotification('Länk kopierad!', 'success');
+        });
+    }
+
+    // Copy code to clipboard
+    if (copyCodeBtn) {
+        copyCodeBtn.addEventListener('click', function() {
+            shareCodeInput.select();
+            document.execCommand('copy');
+            showNotification('Kod kopierad!', 'success');
+        });
+    }
+
+    // Open import shared modal
+    if (importSharedBtn) {
+        importSharedBtn.addEventListener('click', function() {
+            importSharedModal.style.display = 'flex';
+            importSharedModal.setAttribute('aria-hidden', 'false');
+        });
+    }
+
+    // Import from shared link or code
+    if (doImportSharedBtn) {
+        doImportSharedBtn.addEventListener('click', async function() {
+            const shareLink = importShareLinkInput.value.trim();
+            const shareCode = importShareCodeInput.value.trim().toUpperCase();
+
+            let toolsToImport = null;
+
+            // Try to import from link first
+            if (shareLink) {
+                const hashMatch = shareLink.match(/#share=(.+)$/);
+                if (hashMatch) {
+                    toolsToImport = decodeToolsData(hashMatch[1]);
+                } else {
+                    showNotification('Ogiltig delningslänk!', 'error');
+                    return;
+                }
+            }
+            // Try to import from code
+            else if (shareCode) {
+                // Fetch from Firebase or localStorage
+                if (window.FirebaseStorage && window.FirebaseStorage.isEnabled()) {
+                    const shareRef = firebase.database().ref(`shared/${shareCode}`);
+                    const snapshot = await shareRef.once('value');
+                    const shareData = snapshot.val();
+                    if (shareData && shareData.tools) {
+                        toolsToImport = shareData.tools;
+                    }
+                } else {
+                    const shares = JSON.parse(localStorage.getItem('aitools_shares') || '{}');
+                    if (shares[shareCode] && shares[shareCode].tools) {
+                        toolsToImport = shares[shareCode].tools;
+                    }
+                }
+
+                if (!toolsToImport) {
+                    showNotification('Delningskod hittades inte!', 'error');
+                    return;
+                }
+            } else {
+                showNotification('Ange en länk eller kod!', 'warning');
+                return;
+            }
+
+            if (!toolsToImport || !Array.isArray(toolsToImport)) {
+                showNotification('Kunde inte läsa delad data!', 'error');
+                return;
+            }
+
+            // Import the tools
+            const importAction = confirm(`Vill du importera ${toolsToImport.length} verktyg?\n\nOK = Lägg till i din lista\nAvbryt = Ersätt hela listan`);
+
+            if (importAction) {
+                // Add to existing tools
+                const currentTools = await AIToolModel.getAll();
+                await AIToolModel.save([...currentTools, ...toolsToImport]);
+            } else {
+                // Replace all tools
+                await AIToolModel.save(toolsToImport);
+            }
+
+            // Update display
+            toolsData = await AIToolModel.getAll();
+            displayTools();
+
+            // Close modal
+            importSharedModal.style.display = 'none';
+            importSharedModal.setAttribute('aria-hidden', 'true');
+
+            // Clear inputs
+            importShareLinkInput.value = '';
+            importShareCodeInput.value = '';
+
+            showNotification(`${toolsToImport.length} verktyg importerade!`, 'success');
+        });
+    }
+
+    // Close share modal
+    const shareCloseBtn = shareModal.querySelector('.modal-close');
+    const shareCancelBtn = shareModal.querySelector('.modal-cancel-btn');
+    if (shareCloseBtn) {
+        shareCloseBtn.addEventListener('click', function() {
+            shareModal.style.display = 'none';
+            shareModal.setAttribute('aria-hidden', 'true');
+        });
+    }
+    if (shareCancelBtn) {
+        shareCancelBtn.addEventListener('click', function() {
+            shareModal.style.display = 'none';
+            shareModal.setAttribute('aria-hidden', 'true');
+        });
+    }
+
+    // Close import shared modal
+    const importSharedCloseBtn = importSharedModal.querySelector('.modal-close');
+    const importSharedCancelBtn = importSharedModal.querySelector('.modal-cancel-btn');
+    if (importSharedCloseBtn) {
+        importSharedCloseBtn.addEventListener('click', function() {
+            importSharedModal.style.display = 'none';
+            importSharedModal.setAttribute('aria-hidden', 'true');
+        });
+    }
+    if (importSharedCancelBtn) {
+        importSharedCancelBtn.addEventListener('click', function() {
+            importSharedModal.style.display = 'none';
+            importSharedModal.setAttribute('aria-hidden', 'true');
+        });
+    }
+
+    // Check for pending tools from browser extension
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+        chrome.storage.local.get(['pendingTools'], async function(result) {
+            if (result.pendingTools && result.pendingTools.length > 0) {
+                const toolCount = result.pendingTools.length;
+                const importExtTools = confirm(`Du har ${toolCount} verktyg från browser extension!\n\nVill du importera dem?`);
+
+                if (importExtTools) {
+                    // Import all pending tools
+                    for (const tool of result.pendingTools) {
+                        await AIToolModel.add(tool);
+                    }
+
+                    // Clear pending tools
+                    chrome.storage.local.set({ pendingTools: [] });
+
+                    // Update display
+                    toolsData = await AIToolModel.getAll();
+                    displayTools();
+
+                    showNotification(`${toolCount} verktyg importerade från extension!`, 'success');
+                }
+            }
+        });
+    }
+
+    // Check if URL contains shared data on load
+    if (window.location.hash.startsWith('#share=')) {
+        const encoded = window.location.hash.substring(7);
+        const sharedTools = decodeToolsData(encoded);
+
+        if (sharedTools && Array.isArray(sharedTools) && sharedTools.length > 0) {
+            const autoImport = confirm(`Någon har delat ${sharedTools.length} AI-verktyg med dig!\n\nVill du importera dem?`);
+
+            if (autoImport) {
+                const replaceAll = confirm(`OK = Lägg till i din lista\nAvbryt = Ersätt hela listan`);
+
+                if (replaceAll) {
+                    const currentTools = await AIToolModel.getAll();
+                    await AIToolModel.save([...currentTools, ...sharedTools]);
+                } else {
+                    await AIToolModel.save(sharedTools);
+                }
+
+                toolsData = await AIToolModel.getAll();
+                displayTools();
+
+                showNotification(`${sharedTools.length} verktyg importerade från delad länk!`, 'success');
+
+                // Clear hash
+                history.replaceState(null, '', window.location.pathname);
+            }
+        }
+    }
 });
